@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARTEFAK SKRIPSI - Dashboard Pemetaan</title>
+    <link rel="icon" type="image/png" href="Gambar/logo_stis.jpg">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lightBg: '#F4F7FA',
+                        lightSidebar: '#1B264F',
+                        lightAccent: '#3B82F6',
+                        lightUrgent: '#F97316'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom Scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 3px;
+        }
+    </style>
+    <script>
+            // Prevent FOUC (Flash of Unstyled Content) and scroll jumping on reload
+            (function () {
+                let targetTab = 'home';
+                if (window.location.hash) {
+                    targetTab = window.location.hash.substring(1);
+                } else {
+                    const savedTab = sessionStorage.getItem('activeTab');
+                    if (savedTab) targetTab = savedTab;
+                }
+
+                const style = document.createElement('style');
+                style.id = 'fouc-prevention-style';
+                let styleHTML = '#mainContent { opacity: 0 !important; }'; // Hide content until scroll is restored
+
+                if (targetTab !== 'home' && ['fitur', 'estimasi', 'profil'].includes(targetTab)) {
+                    styleHTML += `
+                    #content-home { display: none !important; }
+                    #content-${targetTab} { display: block !important; }
+                    .nav-link[data-target="home"] { background-color: transparent !important; color: #cbd5e1 !important; box-shadow: none !important; }
+                    .nav-link[data-target="${targetTab}"] { background-color: #2563eb !important; color: white !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; }
+                `;
+                }
+                style.innerHTML = styleHTML;
+                document.head.appendChild(style);
+            })();
+    </script>
+</head>
+
+<body class="bg-lightBg text-slate-800 font-sans transition-colors duration-200">
+
+    <div id="sidebarOverlay"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden md:hidden transition-opacity duration-300">
+    </div>
+
+    <div class="flex h-screen overflow-hidden">
+
+        <!-- ==================== SIDEBAR ==================== -->
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 bg-lightSidebar text-white transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col shadow-xl md:static md:inset-auto">
+            <!-- Logo Area -->
+            <div class="flex items-center justify-between px-6 py-5 border-b border-slate-700/50">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shadow-lg">
+                        <i class="fa-solid fa-map-location-dot text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg tracking-wide">ARTEFAK</h1>
+                        <span class="text-xs text-blue-300 font-medium">Dashboard Pemetaan</span>
+                    </div>
+                </div>
+                <!-- Close Button Mobile Only -->
+                <button onclick="toggleSidebar()"
+                    class="md:hidden text-slate-300 hover:text-white focus:outline-none p-1 rounded-lg hover:bg-slate-800 transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                <a href="#" onclick="switchTab('home')"
+                    class="nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-blue-600 text-white shadow-md"
+                    data-target="home">
+                    <i class="fa-solid fa-house w-6 text-center mr-2"></i> Home
+                </a>
+                <a href="#" onclick="switchTab('fitur')"
+                    class="nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800 hover:text-white"
+                    data-target="fitur">
+                    <i class="fa-solid fa-layer-group w-6 text-center mr-2"></i> Fitur Terpilih
+                </a>
+                <a href="#" onclick="switchTab('estimasi')"
+                    class="nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800 hover:text-white"
+                    data-target="estimasi">
+                    <i class="fa-solid fa-chart-pie w-6 text-center mr-2"></i> Estimasi IPM Kecamatan
+                </a>
+                <a href="#" onclick="switchTab('profil')"
+                    class="nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors text-slate-300 hover:bg-slate-800 hover:text-white"
+                    data-target="profil">
+                    <i class="fa-solid fa-user-graduate w-6 text-center mr-2"></i> Profil Mahasiswa
+                </a>
+            </nav>
+        </aside>
+
+        <!-- ==================== MAIN CONTENT AREA ==================== -->
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+            <!-- Header -->
+            <header
+                class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shadow-sm z-10">
+                <div class="flex items-center">
+                    <!-- Hamburger Menu Button (Mainly for Mobile) -->
+                    <button onclick="toggleSidebar()"
+                        class="md:hidden text-slate-600 hover:text-blue-600 focus:outline-none mr-4">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Centered Title -->
+                <div class="absolute left-1/2 transform -translate-x-1/2">
+                    <h2
+                        class="text-base sm:text-lg md:text-xl font-bold tracking-wider text-slate-800 uppercase whitespace-nowrap">
+                        <b>ARTEFAK SKRIPSI</b>
+                    </h2>
+                </div>
+
+                <!-- Campus Logo and Name on the Top Right -->
+                <div class="flex items-center space-x-2.5 ml-auto">
+                    <div class="flex flex-col items-end">
+                        <div
+                            class="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shadow-xs mb-1">
+                            <img src="Gambar/logo_stis.jpg" alt="Logo STIS" class="w-full h-full object-cover"
+                                onerror="this.src='https://placehold.co/100x100/3B82F6/FFFFFF?text=LOGO'">
+                        </div>
+                        <div class="text-right hidden md:block">
+                            <div class="text-[11px] font-bold text-slate-800 leading-tight">Politeknik Statistika STIS
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dynamic Viewport / Content Tabs -->
+            <main id="mainContent" class="flex-1 overflow-y-auto p-4 md:p-8">
+
+                <!-- TAB 1: HOME -->
+                <section id="content-home" class="tab-content space-y-6">
+                    <div
+                        class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden text-center">
+                        <div class="absolute right-0 bottom-0 opacity-10 transform translate-x-10 translate-y-10">
+                            <i class="fa-solid fa-earth-asia text-9xl"></i>
+                        </div>
+                        <span
+                            class="bg-blue-500/40 text-blue-100 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider inline-block"><b>Judul
+                                Penelitian</b></span>
+                        <h3 class="text-2xl md:text-4xl font-bold mt-4 mb-3">Estimasi Indeks Pembangunan Manusia Tingkat
+                            Kecamatan Menggunakan Data Geospasial
+                            Dengan Metode <i>Machine Learning</i> Di Provinsi Nusa Tenggara Timur</h3>
+
+                    </div>
+
+                    <!-- RECREATED RPJMN 2020-2024 DIAGRAM AS A REAL WEB COMPONENT -->
+                    <div class="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                        <div
+                            class="flex flex-col items-center justify-center border-b border-slate-100 pb-4 text-center w-full">
+                            <div class="w-full">
+                                <span
+                                    class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full inline-block">Latar
+                                    Belakang</span>
+                                <h4 class="text-xl font-bold text-slate-800 mt-2">Kerangka
+                                    Kebijakan Nasional</h4>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Diagram Grid: Document Mock on Left, Macro Targets on Right -->
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+
+                            <!-- Left: Interactive RPJMN Document Card -->
+                            <div class="lg:col-span-4 bg-slate-900 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden flex flex-col justify-between border-t-4 border-red-500"
+                                style="background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.98)), url('Gambar/cover_rpjmn_baru.png'); background-size: cover; background-position: center;">
+                                <div class="absolute -right-6 -bottom-6 opacity-10 text-8xl text-white">
+                                    <i class="fa-solid fa-book"></i>
+                                </div>
+                                <div class="space-y-3 relative z-10">
+                                    <div class="flex items-center space-x-2">
+                                        <div
+                                            class="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-bold text-xs text-white shadow">
+                                            <i class="fa-solid fa-book"></i>
+                                        </div>
+                                        <span
+                                            class="text-xs uppercase tracking-wider text-slate-300 font-semibold">Lampiran
+                                            Perpres No. 18 / 2020</span>
+                                    </div>
+                                    <h5 class="text-lg font-bold text-white tracking-wide">RENCANA PEMBANGUNAN JANGKA
+                                        MENENGAH NASIONAL 2020-2024</h5>
+                                    <p class="text-xs text-slate-300 leading-relaxed">
+                                        Dokumen resmi acuan arah kebijakan fiskal, sektoral, dan regional
+                                        pembangunan Indonesia.
+                                    </p>
+                                </div>
+                                <div
+                                    class="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between relative z-10">
+                                    <span class="text-[11px] text-slate-400"><b>Sumber: Kementerian PPN/Bappenas
+                                            (2019)</b></span>
+                                </div>
+                            </div>
+
+                            <!-- Center Arrow / Transition Connector -->
+                            <div class="lg:col-span-1 flex items-center justify-center py-2 lg:py-0">
+                                <div
+                                    class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm animate-pulse transform lg:rotate-0 rotate-90">
+                                    <i class="fa-solid fa-arrow-right text-lg"></i>
+                                </div>
+                            </div>
+
+                            <!-- Right: Interactive Sasaran Makro Pembangunan Grid -->
+                            <div class="lg:col-span-7 bg-slate-50 border border-slate-200/80 p-6 rounded-2xl space-y-4">
+                                <div
+                                    class="text-center bg-amber-700 text-white font-bold text-xs py-2 px-4 rounded-xl shadow-xs tracking-wider uppercase">
+                                    Sasaran Makro Pembangunan 2020-2024
+                                </div>
+
+                                <!-- Macro Targets Grid (Top row & Bottom row with highlighted IPM) -->
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+                                    <div
+                                        class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs hover:border-amber-400 transition-colors">
+                                        <div class="text-amber-600 mb-1 text-sm"><i class="fa-solid fa-chart-line"></i>
+                                        </div>
+                                        <div class="font-bold text-slate-700">Tingkat Inflasi</div>
+                                        <div class="font-extrabold text-amber-700 mt-0.5">2,0-4,0%</div>
+                                        <span class="text-[9px] text-slate-400 block">(Target 2024)</span>
+                                    </div>
+
+                                    <div
+                                        class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs hover:border-amber-400 transition-colors">
+                                        <div class="text-amber-600 mb-1 text-sm"><i class="fa-solid fa-sack-dollar"></i>
+                                        </div>
+                                        <div class="font-bold text-slate-700">PDB per Kapita</div>
+                                        <div class="font-extrabold text-amber-700 mt-0.5">5.600-5.930 USD</div>
+                                        <span class="text-[9px] text-slate-400 block">(Target 2024)</span>
+                                    </div>
+
+                                    <div
+                                        class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs hover:border-amber-400 transition-colors">
+                                        <div class="text-amber-600 mb-1 text-sm"><i class="fa-solid fa-heart-pulse"></i>
+                                        </div>
+                                        <div class="font-bold text-slate-700">Tingkat Kemiskinan</div>
+                                        <div class="font-extrabold text-amber-700 mt-0.5">6,5-7,0%</div>
+                                        <span class="text-[9px] text-slate-400 block">(Target 2024)</span>
+                                    </div>
+
+                                    <!-- Highlighted IPM Target Card with Red Glow Ring -->
+                                    <div
+                                        class="bg-gradient-to-br from-amber-50 to-orange-50 p-3 rounded-xl border-2 border-orange-500 shadow-md relative group">
+                                        <div
+                                            class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-orange-600 text-white flex items-center justify-center text-[10px] shadow">
+                                            <i class="fa-solid fa-star"></i>
+                                        </div>
+                                        <div class="text-orange-600 mb-1 text-sm"><i class="fa-solid fa-users"></i>
+                                        </div>
+                                        <div class="font-bold text-slate-800">IPM Nasional</div>
+                                        <div class="font-black text-orange-600 text-sm mt-0.5">75,54</div>
+                                        <span class="text-[9px] text-orange-700 font-semibold block">(Target
+                                            2024)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Explanatory Bullet Points matching slide notes -->
+                        <div
+                            class="bg-blue-50/60 p-5 rounded-2xl border border-blue-100 space-y-2 text-xs md:text-sm text-slate-700">
+                            <div class="flex items-start gap-2">
+                                <i class="fa-solid fa-circle-check text-blue-600 mt-1"></i>
+                                <div><b>Perpres Nomor 18 Tahun 2020</b> tentang <b>Rencana Pembangunan Jangka Menengah
+                                        Nasional
+                                        (RPJMN) 2020–2024</b> memiliki beberapa sasaran makro pembangunan.</div>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <i class="fa-solid fa-circle-check text-blue-600 mt-1"></i>
+                                <div>Salah satu sasaran makro pembangunan 2020-2024 adalah Pemerintah menetapkan
+                                    <b>target
+                                        IPM
+                                        nasional sebesar 75,54 pada tahun 2024</b>.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RECREATED SECOND SLIDE DIAGRAM: IPM NASIONAL INDONESIA & GAP ANALYSIS -->
+                    <div class="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                        <div
+                            class="flex flex-col items-center justify-center border-b border-slate-100 pb-4 text-center w-full">
+                            <div>
+                                <span
+                                    class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Latar
+                                    Belakang</span>
+                                <h4 class="text-xl font-bold text-slate-800 mt-2">IPM Resmi Nasional Badan Pusat
+                                    Statistik</h4>
+                            </div>
+                        </div>
+
+                        <!-- Grid: Line Chart on Left, Realized Analysis & Recommendation on Right -->
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+
+                            <!-- Left: Interactive IPM Trend Line Chart Card -->
+                            <div class="lg:col-span-7 bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-4">
+                                <div class="text-center font-bold text-sm text-slate-800 mb-2">
+                                    IPM Nasional Tahun 2020 - 2024
+                                </div>
+
+                                <!-- Simulated SVG Line Chart matching slide data -->
+                                <div
+                                    class="relative w-full h-56 bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between shadow-xs">
+                                    <!-- Horizontal Gridlines -->
+                                    <div
+                                        class="absolute inset-x-4 top-8 bottom-8 flex flex-col justify-between pointer-events-none opacity-30">
+                                        <div class="border-b border-dashed border-slate-300 w-full"></div>
+                                        <div class="border-b border-dashed border-slate-300 w-full"></div>
+                                        <div class="border-b border-dashed border-slate-300 w-full"></div>
+                                    </div>
+
+                                    <!-- Chart Visual Header / SVG Polyline -->
+                                    <div class="relative h-full w-full flex items-end">
+                                        <svg class="absolute inset-0 w-full h-full overflow-visible"
+                                            viewBox="0 0 500 160" preserveAspectRatio="none">
+                                            <!-- Line connecting points -->
+                                            <polyline fill="none" stroke="#1e293b" stroke-width="3"
+                                                points="30,120 135,105 240,85 345,65 450,45" />
+
+                                            <!-- Data Points -->
+                                            <circle cx="30" cy="120" r="5" fill="#1e293b" />
+                                            <circle cx="135" cy="105" r="5" fill="#1e293b" />
+                                            <circle cx="240" cy="85" r="5" fill="#1e293b" />
+                                            <circle cx="345" cy="65" r="5" fill="#1e293b" />
+                                            <circle cx="450" cy="45" r="7" fill="#ef4444" />
+                                        </svg>
+
+                                        <!-- Point Labels Overlay Positioned Directly Above Each Data Point -->
+                                        <div class="absolute inset-x-0 bottom-0 h-full pointer-events-none">
+                                            <!-- Point 1 (2020: 72.81) -->
+                                            <div class="absolute left-[6%] bottom-[32%] transform -translate-x-1/2">
+                                                <span
+                                                    class="bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm font-bold">72.81</span>
+                                            </div>
+                                            <!-- Point 2 (2021: 73.16) -->
+                                            <div class="absolute left-[27%] bottom-[41%] transform -translate-x-1/2">
+                                                <span
+                                                    class="bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm font-bold">73.16</span>
+                                            </div>
+                                            <!-- Point 3 (2022: 73.77) -->
+                                            <div class="absolute left-[48%] bottom-[53%] transform -translate-x-1/2">
+                                                <span
+                                                    class="bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm font-bold">73.77</span>
+                                            </div>
+                                            <!-- Point 4 (2023: 74.39) -->
+                                            <div class="absolute left-[69%] bottom-[66%] transform -translate-x-1/2">
+                                                <span
+                                                    class="bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm font-bold">74.39</span>
+                                            </div>
+                                            <!-- Point 5 (2024: 75.02) -->
+                                            <div class="absolute left-[90%] bottom-[78%] transform -translate-x-1/2">
+                                                <span
+                                                    class="bg-red-600 text-white text-[11px] font-black px-2 py-0.5 rounded shadow-md">75.02</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- X-Axis Years -->
+                                    <div
+                                        class="flex justify-between px-2 pt-2 border-t border-slate-200 text-xs font-semibold text-slate-600">
+                                        <span>2020</span>
+                                        <span>2021</span>
+                                        <span>2022</span>
+                                        <span>2023</span>
+                                        <span class="text-red-600 font-bold">2024</span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="text-center text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                                    Tahun</div>
+                                <div class="mt-4 text-left">
+                                    <span
+                                        class="text-[10px] text-slate-500 bg-slate-100/50 px-2.5 py-1 rounded-lg border border-slate-200">
+                                        Sumber: <b>Badan Pusat Statistik (2024)</b>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Right: Analysis Notes & Realized Warning Callouts -->
+                            <div class="lg:col-span-5 space-y-4">
+                                <!-- Top Callout Bubble -->
+                                <div class="bg-blue-50/80 border-2 border-blue-200 p-4 rounded-2xl relative shadow-sm">
+                                    <div
+                                        class="absolute -left-3 top-6 w-4 h-4 bg-blue-100 border-l border-t border-blue-200 transform -rotate-45">
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <div
+                                            class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-xs shadow-xs">
+                                            <i class="fa-solid fa-info"></i>
+                                        </div>
+                                        <p class="text-xs md:text-sm text-slate-700 leading-relaxed">
+                                            Namun, IPM Nasional pada tahun 2024 sebesar <b class="text-red-600">75,02
+                                                (belum mencapai target RPJMN)</b>, menunjukkan bahwa capaian kinerja
+                                            pemerintah
+                                            terkait program pembangunan manusia masih belum maksimal.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Bottom Section Group (Arrow, Badge, and Bubble) -->
+                                <div>
+                                    <div class="flex flex-col items-center justify-center">
+                                        <div class="flex flex-col items-center animate-pulse mb-3">
+                                            <div
+                                                class="w-10 h-10 bg-red-500 rounded-full shadow-md flex items-center justify-center text-white">
+                                                <i class="fa-solid fa-arrow-down text-lg"></i>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="bg-red-600 text-white text-xs font-black uppercase px-4 py-2 rounded-t-xl shadow-sm tracking-wider flex items-center gap-2 relative z-10 translate-y-[2px]">
+                                            <i class="fa-solid fa-triangle-exclamation text-sm"></i>
+                                            <span>Perlu Diperhatikan !</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Bottom Callout Bubble -->
+                                    <div
+                                        class="bg-amber-50/80 border-2 border-amber-200 p-4 rounded-2xl shadow-sm relative z-0">
+                                        <p class="text-xs md:text-sm text-slate-700 leading-relaxed text-center">
+                                            <b>Pentingnya estimasi nilai IPM pada tingkat wilayah yang lebih kecil,
+                                                seperti
+                                                kecamatan guna mendukung perencanaan, pelaksanaan, pemantauan, dan
+                                                evaluasi program pembangunan manusia yang lebih efektif.</b>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- NEW RECREATED SECTION: IDENTIFIKASI MASALAH -->
+                    <div class="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                        <div
+                            class="flex flex-col items-center justify-center border-b border-slate-100 pb-4 text-center w-full">
+                            <span
+                                class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Identifikasi
+                                Masalah</span>
+                            <h4 class="text-2xl font-bold text-slate-800 mt-2">Sumber Data dan Metode yang Digunakan
+                            </h4>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+
+                            <!-- 1. Susenas Header (Desktop R1 C1 / Mobile 1) -->
+                            <div class="order-1 lg:order-none">
+                                <div
+                                    class="bg-slate-900 text-white p-5 rounded-2xl shadow-lg relative overflow-hidden flex items-center justify-between border-t-4 border-blue-500 h-full">
+                                    <div class="space-y-1">
+                                        <h5 class="text-lg font-bold tracking-wide">SUSENAS</h5>
+                                        <p class="text-xs text-slate-300">Sumber data utama penghitungan IPM oleh BPS.
+                                        </p>
+                                    </div>
+                                    <div
+                                        class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-xl shadow-md shrink-0 ml-4">
+                                        <i class="fa-solid fa-clipboard-list text-white"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. Empty Spacer (Desktop R1 C2 / Hidden Mobile) -->
+                            <div class="hidden lg:block lg:order-none"></div>
+
+                            <!-- 3. Keterbatasan Susenas (Desktop R2 C1 / Mobile 2) -->
+                            <div class="order-2 lg:order-none">
+                                <div class="bg-red-500 text-white p-5 rounded-2xl shadow-md relative space-y-3 h-full">
+                                    <div class="flex items-center space-x-2">
+                                        <div
+                                            class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-bold text-sm shrink-0">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                        </div>
+                                        <h6 class="font-bold text-base">Keterbatasan Susenas</h6>
+                                    </div>
+                                    <div
+                                        class="text-xs space-y-2 leading-relaxed bg-red-600/50 p-3.5 rounded-xl border border-red-400/40">
+                                        <div><b>Cakupan:</b> Ukuran sampel yang presisi hanya sampai tingkat
+                                            kabupaten/kota.</div>
+                                        <div><b>Operasional:</b> Pengumpulan data membutuhkan biaya yang besar
+                                            dan waktu yang relatif lama.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4. Keterbatasan Metode Konvensional (Desktop R2 C2 / Mobile 5) -->
+                            <div class="order-5 lg:order-none">
+                                <div class="bg-red-500 text-white p-6 rounded-2xl shadow-md relative space-y-4 h-full">
+                                    <div class="flex items-center space-x-2">
+                                        <div
+                                            class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-bold text-sm shrink-0">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                        </div>
+                                        <h6 class="font-bold text-base">Keterbatasan Metode Statistik Konvensional</h6>
+                                    </div>
+                                    <p
+                                        class="text-xs leading-relaxed bg-red-600/50 p-4 rounded-xl border border-red-400/40">
+                                        Metode statistik konvensional dianggap kurang fleksibel dan perlu memenuhi
+                                        beberapa asumsi tertentu dalam pemodelan estimasi.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- 5. Arrow Left (Desktop R3 C1 / Mobile 3) -->
+                            <div class="order-3 lg:order-none flex justify-center items-center py-2">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-green-500 shadow-lg shadow-green-500/50 flex items-center justify-center text-white animate-pulse">
+                                    <i class="fa-solid fa-arrow-down text-base"></i>
+                                </div>
+                            </div>
+
+                            <!-- 6. Arrow Right (Desktop R3 C2 / Mobile 6) -->
+                            <div class="order-6 lg:order-none flex justify-center items-center py-2">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-green-500 shadow-lg shadow-green-500/50 flex items-center justify-center text-white animate-pulse">
+                                    <i class="fa-solid fa-arrow-down text-base"></i>
+                                </div>
+                            </div>
+
+                            <!-- 7. Data Geospasial (Desktop R4 C1 / Mobile 4) -->
+                            <div class="order-4 lg:order-none">
+                                <div
+                                    class="bg-slate-900 text-white p-5 rounded-2xl shadow-md relative space-y-3 h-full">
+                                    <div class="flex items-center space-x-2">
+                                        <div
+                                            class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
+                                            <i class="fa-solid fa-lightbulb text-amber-300"></i>
+                                        </div>
+                                        <h6 class="font-bold text-base">Data Geospasial</h6>
+                                    </div>
+                                    <div
+                                        class="text-xs space-y-2 leading-relaxed bg-slate-800 p-3.5 rounded-xl border border-slate-700">
+                                        <div><b>Cakupan:</b> Cakupan data yang presisi dan lebih bersifat granular
+                                            (hingga tingkat
+                                            desa/kelurahan).</div>
+                                        <div><b>Operasional:</b> Pengumpulan data hanya membutuhkan biaya yang rendah
+                                            dan
+                                            waktu yang relatif singkat.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 8. Machine Learning (Desktop R4 C2 / Mobile 7) -->
+                            <div class="order-7 lg:order-none">
+                                <div
+                                    class="bg-slate-900 text-white p-6 rounded-2xl shadow-md relative space-y-4 h-full">
+                                    <div class="flex items-center space-x-2">
+                                        <div
+                                            class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
+                                            <i class="fa-solid fa-lightbulb text-amber-300"></i>
+                                        </div>
+                                        <h6 class="font-bold text-base">Metode <i>Machine Learning</i></h6>
+                                    </div>
+                                    <p
+                                        class="text-xs leading-relaxed bg-slate-800 p-4 rounded-xl border border-slate-700">
+                                        Metode <i>machine learning</i> lebih fleksibel dan tidak memerlukan banyak
+                                        asumsi dalam pembangunan model estimasi.
+                                    </p>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- NEW RECREATED SLIDE 6 SECTION: IDENTIFIKASI MASALAH (LOKUS NTT) & BATASAN PENELITIAN -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Left Column: Identifikasi Masalah & Lokus Penelitian NTT -->
+                        <div
+                            class="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex flex-col justify-start">
+                            <div
+                                class="flex flex-col items-center justify-center border-b border-slate-100 pb-4 text-center w-full">
+                                <span
+                                    class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Lokus
+                                    Penelitian</span>
+                                <h4 class="text-xl font-bold text-slate-800 mt-2">Provinsi Nusa Tenggara Timur
+                                </h4>
+                            </div>
+
+                            <!-- Grouped Map & Explanation -->
+                            <div class="flex flex-col">
+                                <!-- Map Illustration Simulation of NTT Islands with professional visual render -->
+                                <div
+                                    class="relative bg-slate-900 border border-slate-800 border-b-0 rounded-t-2xl p-5 flex flex-col items-center justify-center overflow-hidden shadow-inner">
+                                    <div
+                                        class="absolute inset-0 opacity-15 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:18px_18px]">
+                                    </div>
+                                    <div class="relative z-10 w-full flex flex-col items-center space-y-3">
+                                        <div
+                                            class="w-full rounded-xl overflow-hidden shadow-lg border border-slate-700">
+                                            <img src="Gambar/peta_ntt.jpg"
+                                                alt="Peta Tematik Klaster IPM Provinsi Nusa Tenggara Timur"
+                                                class="w-full h-auto object-cover hover:scale-105 transition-transform duration-500">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Explanation Card -->
+                                <div
+                                    class="bg-slate-900 text-white p-5 rounded-b-2xl shadow-lg border-l-4 border-emerald-500 border-r border-b border-slate-800 text-xs md:text-sm leading-relaxed space-y-2">
+                                    <div class="space-y-4 pt-2">
+                                        <div
+                                            class="flex items-start gap-3 bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                                            <span
+                                                class="w-6 h-6 rounded-lg bg-blue-600 font-bold text-white flex items-center justify-center shrink-0 text-xs">1</span>
+                                            <p>
+                                                Provinsi NTT memiliki nilai capaian IPM provinsi sebesar 67,39 yang
+                                                merupakan
+                                                terendah keempat nasional dan <b><u>terendah pertama di luar pulau
+                                                        Papua</u></b>
+                                                pada tahun 2024.
+                                            </p>
+                                        </div>
+                                        <div
+                                            class="flex items-start gap-3 bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                                            <span
+                                                class="w-6 h-6 rounded-lg bg-blue-600 font-bold text-white flex items-center justify-center shrink-0 text-xs">2</span>
+                                            <p>
+                                                Penelitian oleh Syaifullah dan Sari (2025) yang <b><u>mengungkap adanya
+                                                        tantangan serius dalam peningkatan kualitas hidup
+                                                        masyarakat</u></b>
+                                                pada berbagai dimensi pembangunan manusia seperti aspek kesehatan, aspek
+                                                pendidikan, dan standar hidup yang layak di <b><u>provinsi Nusa Tenggara
+                                                        Timur
+                                                        (NTT)</u></b> sejak tahun 2020–2024.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <p>
+                                        <br>
+                                        Oleh sebab itu, <b>provinsi NTT dipilih sebagai lokus penelitian.</b>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Batasan Penelitian -->
+                        <div
+                            class="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex flex-col justify-start">
+                            <div
+                                class="flex flex-col items-center justify-center border-b border-slate-100 pb-4 text-center w-full">
+                                <span
+                                    class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Ruang
+                                    Lingkup</span>
+                                <h4 class="text-xl font-bold text-slate-800 mt-2">Batasan Penelitian</h4>
+                            </div>
+
+                            <!-- Numbered List Card -->
+                            <div
+                                class="bg-slate-900 text-white p-6 rounded-2xl shadow-lg space-y-4 text-xs md:text-sm leading-relaxed">
+                                <div
+                                    class="flex items-start gap-3 bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                                    <span
+                                        class="w-6 h-6 rounded-lg bg-blue-600 font-bold text-white flex items-center justify-center shrink-0 text-xs">1</span>
+                                    <p>Data yang digunakan adalah data geospasial dan statistik resmi yang sumbernya
+                                        di luar Susenas.</p>
+                                </div>
+
+                                <div
+                                    class="flex items-start gap-3 bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                                    <span
+                                        class="w-6 h-6 rounded-lg bg-blue-600 font-bold text-white flex items-center justify-center shrink-0 text-xs">2</span>
+                                    <p>Metode yang digunakan dibatasi pada <i>machine learning</i>, tanpa membandingkan
+                                        dengan metode penghitungan IPM resmi oleh BPS atau metode statistik konvensional
+                                        lain.</p>
+                                </div>
+
+                                <div
+                                    class="flex items-start gap-3 bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                                    <span
+                                        class="w-6 h-6 rounded-lg bg-blue-600 font-bold text-white flex items-center justify-center shrink-0 text-xs">3</span>
+                                    <p>Evaluasi model estimasi hanya dapat dilakukan pada data tingkat kabupaten/kota
+                                        karena
+                                        keterbatasan data IPM resmi pada tingkat kecamatan.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RECREATED TUJUAN PENELITIAN SECTION MATCHING IMAGE -->
+                    <div class="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                        <div
+                            class="flex flex-col items-center justify-center border-b border-slate-100 pb-4 text-center w-full">
+                            <span
+                                class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Tujuan
+                                Penelitian<br><br></span>
+                            <p class="text-sm md:text-base text-slate-700 leading-relaxed max-w-4xl">
+                                Berdasarkan latar belakang dan identifikasi masalah yang telah diuraikan, penelitian
+                                ini memiliki beberapa tujuan yang ingin dicapai yaitu
+                                sebagai berikut:
+                            </p>
+                        </div>
+
+                        <!-- 3 Dark Blue Cards Grid matching the image -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                            <!-- Card 1 -->
+                            <div
+                                class="bg-[#0e1330] text-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center space-y-4 border border-slate-800">
+                                <div
+                                    class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 text-3xl shadow-inner border border-white/10">
+                                    <i class="fa-solid fa-file-lines"></i>
+                                </div>
+                                <p class="text-xs md:text-sm leading-relaxed text-slate-200 font-normal">
+                                    Menggunakan data geospasial dan statistik resmi
+                                    untuk mengestimasi IPM tingkat kecamatan di provinsi NTT.
+                                </p>
+                            </div>
+
+                            <!-- Card 2 -->
+                            <div
+                                class="bg-[#0e1330] text-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center space-y-4 border border-slate-800">
+                                <div
+                                    class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 text-3xl shadow-inner border border-white/10">
+                                    <i class="fa-solid fa-microchip"></i>
+                                </div>
+                                <p class="text-xs md:text-sm leading-relaxed text-slate-200 font-normal">
+                                    Mengevaluasi dan menggunakan model <i>machine learning</i> terbaik untuk
+                                    mengestimasi IPM
+                                    tingkat kecamatan di provinsi NTT.
+                                </p>
+                            </div>
+
+                            <!-- Card 3 -->
+                            <div
+                                class="bg-[#0e1330] text-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center space-y-4 border border-slate-800">
+                                <div
+                                    class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 text-3xl shadow-inner border border-white/10">
+                                    <i class="fa-solid fa-display"></i>
+                                </div>
+                                <p class="text-xs md:text-sm leading-relaxed text-slate-200 font-normal">
+                                    Memetakan hasil estimasi IPM tingkat kecamatan di provinsi NTT dengan <i>dashboard
+                                        web
+                                        map</i>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: FITUR TERPILIH -->
+                <section id="content-fitur" class="tab-content hidden space-y-6">
+                    <div>
+                        <h3 class="text-2xl font-bold tracking-tight mb-1">Fitur Terpilih Pemodelan Estimasi</h3>
+                        <p class="text-sm text-slate-600">Kategori fitur, ringkasan (<i>summary</i>) statistik dan
+                            relevansinya terhadap IPM.</p>
+                    </div>
+
+                    <!-- DROPDOWN FILTER SELECTION -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h4 class="font-bold text-base mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-filter text-blue-600"></i>
+                            Filter Sumber Data & Fitur Spesifik
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Pilih Jenis
+                                    Data</label>
+                                <select id="dataTypeDropdown" onchange="updateFeatureDropdownOptions()"
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="data_geospasial">Data Geospasial</option>
+                                    <option value="statistik_resmi">Data Statistik Resmi</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Pilih Fitur
+                                    Spesifik</label>
+                                <select id="featureSelectDropdown" onchange="updateFeatureDetails()"
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <!-- Options populated dynamically via JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 STATISTICAL SUMMARY CARDS FOR SELECTED FEATURE -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Nilai Minimum</span>
+                                <i class="fa-solid fa-arrow-down text-blue-500"></i>
+                            </div>
+                            <div id="statMin" class="text-2xl font-bold"></div>
+                            <p id="featureStatMinKec" class="text-xs text-slate-400 mt-1"></p>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Nilai Rata-Rata</span>
+                                <i class="fa-solid fa-chart-line text-emerald-500"></i>
+                            </div>
+                            <div id="statAvg" class="text-2xl font-bold"></div>
+
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Nilai Maksimum</span>
+                                <i class="fa-solid fa-arrow-up text-amber-500"></i>
+                            </div>
+                            <div id="statMax" class="text-2xl font-bold"></div>
+                            <p id="featureStatMaxKec" class="text-xs text-slate-400 mt-1"></p>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Standar Deviasi</span>
+                                <i class="fa-solid fa-chart-pie text-indigo-500"></i>
+                            </div>
+                            <div id="statStd" class="text-2xl font-bold"></div>
+
+                        </div>
+                    </div>
+
+                    <!-- SPACE / RUANG PEMETAAN SPASIAL PER FITUR -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div
+                            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-map-location-dot"></i>
+                                </div>
+                                <h4 class="font-bold text-base">Visualisasi Pemetaan Fitur Spesifik</h4>
+                            </div>
+
+
+                        </div>
+
+                        <div id="featureMapCanvas"
+                            class="relative w-full h-[400px] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center z-0">
+                            <iframe id="featureMapIframe" src="" class="absolute inset-0 w-full h-full border-0"
+                                allowfullscreen></iframe>
+                        </div>
+                    </div>
+
+                    <!-- FEATURE RELEVANCE & DESCRIPTION CARD -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <div id="featureIconBox"
+                                class="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-lightbulb"></i>
+                            </div>
+                            <div>
+                                <h4 id="featureTitle" class="font-bold text-lg"></h4>
+                                <span id="featureCategory"
+                                    class="text-xs bg-blue-100 text-blue-600 px-2.5 py-0.5 rounded-full font-semibold">Kategori:
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-4">
+                            <h5 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Relevansi Fitur
+                                dengan IPM:
+                            </h5>
+                            <p id="featureDesc" class="text-sm text-slate-600 leading-relaxed">
+
+                            </p>
+                        </div>
+
+                        <div class="bg-blue-50/70 p-4 rounded-xl border border-blue-100">
+                            <h5 class="text-xs font-bold uppercase text-blue-600 mb-1">Dimensi IPM yang Berkaitan:</h5>
+                            <p id="featureRelevance" class="text-xs text-slate-600 leading-relaxed">
+
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: ESTIMASI IPM KECAMATAN -->
+                <section id="content-estimasi" class="tab-content hidden space-y-6">
+                    <div>
+                        <h3 class="text-2xl font-bold tracking-tight mb-1">Pemetaan Estimasi IPM Seluruh Kecamatan di
+                            Provinsi Nusa Tenggara Timur</h3>
+                        <p class="text-sm text-slate-600">Peta interaktif, ringkasan statistik seluruh kecamatan, serta
+                            daftar daftar
+                            peringkat IPM kecamatan.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-slate-500 uppercase">IPM Minimum</span>
+                                <i class="fa-solid fa-arrow-down text-orange-500"></i>
+                            </div>
+                            <div id="statMinVal" class="text-2xl font-bold">-</div>
+                            <p id="statMinKec" class="text-xs text-slate-400 mt-1"></p>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-slate-500 uppercase">IPM Rata-Rata</span>
+                                <i class="fa-solid fa-chart-line text-blue-500"></i>
+                            </div>
+                            <div id="statMeanVal" class="text-2xl font-bold">-</div>
+                            <p id="statMeanDesc" class="text-xs text-slate-400 mt-1"></p>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-slate-500 uppercase">IPM Maksimum</span>
+                                <i class="fa-solid fa-arrow-up text-emerald-500"></i>
+                            </div>
+                            <div id="statMaxVal" class="text-2xl font-bold">-</div>
+                            <p id="statMaxKec" class="text-xs text-slate-400 mt-1"></p>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Standar Deviasi IPM</span>
+                                <i class="fa-solid fa-chart-pie text-indigo-500"></i>
+                            </div>
+                            <div id="statSdVal" class="text-2xl font-bold">-</div>
+                            <p class="text-xs text-slate-400 mt-1"></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 mb-6">
+                        <!-- Top 5 Highest IPM -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h4 class="font-bold text-base flex items-center gap-2">
+                                    <div
+                                        class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-trophy"></i>
+                                    </div>
+                                    Top 5 Kecamatan IPM Tertinggi
+                                </h4>
+
+                            </div>
+                            <div id="top5HighestContainer" class="space-y-3 text-sm">
+                                <!-- Populated dynamically by JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Top 5 Lowest IPM -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h4 class="font-bold text-base flex items-center gap-2">
+                                    <div
+                                        class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                    </div>
+                                    Top 5 Kecamatan IPM Terendah
+                                </h4>
+
+                            </div>
+                            <div id="top5LowestContainer" class="space-y-3 text-sm">
+                                <!-- Populated dynamically by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Dashboard Grid Layout -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                        <!-- PETA INTERAKTIF -->
+                        <div
+                            class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[550px] relative overflow-hidden">
+                            <!-- Map Toolbar Header -->
+                            <div
+                                class="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+                                <!-- Search Bar -->
+                                <div
+                                    class="flex items-center space-x-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 flex-1 max-w-xs shadow-inner">
+                                    <i class="fa-solid fa-search text-slate-400 text-xs"></i>
+                                    <input type="text" id="mapSearchInput" placeholder="Cari kecamatan..."
+                                        class="bg-transparent text-xs focus:outline-none w-full"
+                                        oninput="filterKecamatanList()">
+                                </div>
+                                <!-- Kab/Kota Filter -->
+                                <div
+                                    class="flex items-center space-x-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-inner">
+                                    <i class="fa-solid fa-filter text-slate-400 text-xs"></i>
+                                    <select id="kabkotaFilter" class="bg-transparent text-xs cursor-pointer"
+                                        style="border: none !important; outline: none !important; box-shadow: none !important; -webkit-box-shadow: none !important; focus:ring: 0;"
+                                        onchange="filterKecamatanList()">
+                                        <option value="">Filter Kabupaten/Kota</option>
+                                    </select>
+                                </div>
+
+                            </div>
+
+                            <!-- Interactive Map Canvas Simulation Area -->
+                            <div id="mapCanvas" class="flex-1 relative bg-slate-50 overflow-hidden z-0">
+                                <iframe src="estimasi_IPM/estimasi_IPM.html"
+                                    class="absolute inset-0 w-full h-full border-0" allowfullscreen></iframe>
+                            </div>
+                        </div>
+
+                        <!-- PANEL INFORMASI KECAMATAN -->
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[550px]">
+                            <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                                <h4 class="font-bold text-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-list-ul text-blue-600"></i>
+                                    Daftar Kecamatan & Kabupaten/Kota
+                                </h4>
+
+                            </div>
+
+                            <!-- Kecamatan List Container -->
+                            <div class="flex-1 overflow-y-auto p-3 space-y-2" id="kecamatanListContainer">
+                                <!-- Populated dynamically by JavaScript -->
+                            </div>
+
+                            <!-- Selected Detail Footer Card -->
+                            <div id="selectedKecamatanDetail"
+                                class="p-3 bg-blue-50 border-t border-slate-200 text-xs text-slate-600">
+                                <span class="font-semibold text-blue-600">Info Wilayah:</span> <b>Klik</b> nama
+                                kecamatan untuk meng-<b>highlight</b> kecamatan pada peta dan melihat informasi
+                                terkait
+                                kecamatan.
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                </section>
+
+                <!-- TAB 4: PROFIL MAHASISWA -->
+                <section id="content-profil" class="tab-content hidden space-y-6">
+                    <div class="bg-white rounded-3xl p-6 md:p-10 border border-slate-200 shadow-sm max-w-4xl mx-auto">
+                        <div class="flex flex-col md:flex-row items-center gap-6 pb-6 border-b border-slate-200">
+                            <div
+                                class="w-24 h-24 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                <img src="Gambar/profil_samuel.jpg" alt="Foto Profil Mahasiswa"
+                                    class="w-full h-full object-cover object-[50%_15%]">
+                            </div>
+                            <div class="text-center md:text-left">
+                                <h3 class="text-2xl font-bold">Samuel Marvelius Sianturi</h3>
+                                <p class="text-sm text-blue-600 font-medium">Program Studi Komputasi Statistik /
+                                    Peminatan Sains Data
+                                </p>
+                                <p class="text-xs text-slate-500 mt-1">NIM: 222212872</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                            <div>
+                                <h4 class="font-bold text-sm uppercase tracking-wider text-slate-400 mb-3">Judul
+                                    Penelitian Skripsi</h4>
+                                <p
+                                    class="text-sm font-semibold leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                    "Estimasi Indeks Pembangunan Manusia Tingkat Kecamatan Menggunakan Data Geospasial
+                                    Dengan Metode <i>Machine Learning</i> Di Provinsi Nusa Tenggara Timur"
+                                </p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm uppercase tracking-wider text-slate-400 mb-3">Dosen
+                                    Pembimbing Utama</h4>
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-sm">
+                                    <div class="font-semibold">Dr. Bony Parulian Josaphat, S.Si., M.Si.</div>
+                                    <div class="text-xs text-slate-500">NIP. 198001182011011001</div>
+                                    <div class="text-xs text-blue-600 font-medium pt-1">Dosen Program Studi Komputasi
+                                        Statistik</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Import Estimasi IPM Kecamatan Data -->
+    <script src="estimasi_IPM/data/Estimasi_IPM_Kecamatan_1.js"></script>
+
+    <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+    <script>
+        // Toggle Sidebar for Mobile Responsive View with Backdrop
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+
+            if (isOpen) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            }
+        }
+
+        // Close sidebar when clicking anywhere outside on mobile view
+        document.addEventListener('click', function (event) {
+            if (window.innerWidth >= 768) return; // Do nothing on desktop/full-screen view
+
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+
+            if (isOpen) {
+                const clickedInsideSidebar = sidebar.contains(event.target);
+                const isHamburgerButton = event.target.closest('button[onclick="toggleSidebar()"]');
+
+                if (!clickedInsideSidebar && !isHamburgerButton) {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                }
+            }
+        });
+
+        document.getElementById('sidebarOverlay').addEventListener('click', function () {
+            if (window.innerWidth >= 768) return;
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        });
+
+        // Switch Tabs Navigation
+        function switchTab(targetId) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.add('hidden'));
+
+            document.getElementById('content-' + targetId).classList.remove('hidden');
+
+            if (targetId === 'estimasi') {
+                const iframe = document.querySelector('#mapCanvas iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'resize-map' }, '*');
+                }
+            } else if (targetId === 'fitur') {
+                const iframe = document.getElementById('featureMapIframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'resize-map' }, '*');
+                }
+            }
+
+            const links = document.querySelectorAll('.nav-link');
+            links.forEach(link => {
+                link.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
+                link.classList.add('text-slate-300', 'hover:bg-slate-800', 'hover:text-white');
+                if (link.getAttribute('data-target') === targetId) {
+                    link.classList.add('bg-blue-600', 'text-white', 'shadow-md');
+                    link.classList.remove('text-slate-300', 'hover:bg-slate-800', 'hover:text-white');
+                }
+            });
+
+            sessionStorage.setItem('activeTab', targetId);
+            window.history.replaceState(null, null, '#' + targetId);
+
+            // On mobile view, auto-close sidebar on tab switch
+            if (window.innerWidth < 768) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                if (sidebar && overlay) {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                }
+            }
+        }
+
+        // Dynamic Feature Statistics and Descriptions grouped by Data Type
+        const featureDatabase = {
+            data_geospasial: [
+                {
+                    id: "ntl",
+                    min: "0.22",
+                    minKec: "Alok Timur",
+                    avg: "0.62",
+                    max: "21.31",
+                    maxKec: "Oebobo",
+                    std: "sd = 2.16",
+                    title: "Night Time Light (NTL)",
+                    category: "Kategori: Data Geospasial",
+                    desc: "Intensitas NTL dapat digunakan sebagai indikator untuk mengidentifikasi wilayah dengan konsentrasi permukiman yang padat, seperti wilayah perkotaan, sehingga dapat menggambarkan tingkat aktivitas sosial dan ekonomi manusia pada malam hari (Zheng, et al., 2021). Selain itu, NTL juga dapat dimanfaatkan untuk mengestimasi Produk Domestik Bruto (PDB), serta menganalisis tingkat konsumsi energi listrik di suatu wilayah (Gu et al., 2022). Dalam penelitian lain, NTL juga digunakan untuk mengidentifikasi kemiskinan hingga tingkat wilayah yang granular (Putri et al., 2022; Ramadhan et al., 2023).",
+                    relevance: "Standar Hidup yang Layak",
+                    mapUrl: "NTL/NTL.html"
+                },
+                {
+                    id: "co",
+                    min: "0.02",
+                    minKec: "Langke Rembong",
+                    avg: "0.03",
+                    max: "0.03",
+                    maxKec: "Palue",
+                    std: "sd = 0.00",
+                    title: "Carbon Monoxide (CO)",
+                    category: "Kategori: Data Geospasial",
+                    desc: "Emisi Carbon Monoxide (CO) sering dikaitkan dengan aktivitas manusia, termasuk industri dan transportasi, yang menjadi representasi tingkat urbanisasi dan aktivitas ekonomi suatu wilayah.",
+                    relevance: "Standar Hidup yang Layak, Umur Panjang dan Hidup Sehat",
+                    mapUrl: "CO/CO.html"
+                }
+            ],
+            statistik_resmi: [
+                {
+                    id: "kepadatan_penduduk",
+                    min: "1.75",
+                    minKec: "Langke Rembong",
+                    avg: "311.82",
+                    max: "11143.79",
+                    maxKec: "Kota Lama",
+                    std: "sd = 1011.03",
+                    title: "Kepadatan Penduduk (per km kuadrat)",
+                    category: "Kategori: Statistik Resmi",
+                    desc: "Wilayah dengan kepadatan penduduk yang tinggi cenderung teridentifikasi pada area perkotaan dengan tingkat pembangunan manusia yang lebih baik (Ramadhan & Wijayanto, 2023).",
+                    relevance: "Umur Panjang Hidup Sehat, Pengetahuan, Standar Hidup Layak",
+                    mapUrl: "Kepadatan Penduduk/kepadatan_penduduk.html"
+                },
+                {
+                    id: "rasio_ekonomi",
+                    min: "0.00",
+                    minKec: "Amarasi",
+                    avg: "0.28",
+                    max: "4.24",
+                    maxKec: "Ende Timur",
+                    std: "sd = 0.39",
+                    title: "Rasio Fasilitas Ekonomi per 1000 Penduduk",
+                    category: "Kategori: Statistik Resmi",
+                    desc: "Rasio Fasilitas Ekonomi per 1000 penduduk dapat menjadi pendekatan untuk melihat kemampuan ekonomi masyarakat dalam memenuhi kebutuhan hidupnya.",
+                    relevance: "Standar Hidup yang Layak",
+                    mapUrl: "Rasio Fasilitas Ekonomi/rasio_fasilitas_ekonomi.html"
+                },
+                {
+                    id: "rasio_kesehatan",
+                    min: "0.00",
+                    minKec: "Taebenu",
+                    avg: "0.17",
+                    max: "0.61",
+                    maxKec: "Komodo",
+                    std: "sd = 0.11",
+                    title: "Rasio Fasilitas Kesehatan per 1000 Penduduk",
+                    category: "Kategori: Statistik Resmi",
+                    desc: "Rasio Fasilitas Kesehatan per 1000 penduduk dapat menjadi pendekatan dalam mengukur taraf atau tingkat pelayanan kesehatan masyarakat.",
+                    relevance: "Umur Panjang dan Hidup Sehat",
+                    mapUrl: "Rasio Fasilitas Kesehatan/rasio_fasilitas_kesehatan.html"
+                }
+            ]
+        };
+
+        function updateFeatureDropdownOptions(savedFeatureId = null) {
+            const dataType = document.getElementById('dataTypeDropdown').value;
+            const featureSelect = document.getElementById('featureSelectDropdown');
+            const features = featureDatabase[dataType] || [];
+
+            featureSelect.innerHTML = '';
+            features.forEach(feat => {
+                const opt = document.createElement('option');
+                opt.value = feat.id;
+                opt.textContent = feat.title;
+                featureSelect.appendChild(opt);
+            });
+
+            if (savedFeatureId) {
+                const optionExists = Array.from(featureSelect.options).some(opt => opt.value === savedFeatureId);
+                if (optionExists) {
+                    featureSelect.value = savedFeatureId;
+                }
+            }
+
+            updateFeatureDetails();
+        }
+
+        function updateFeatureDetails() {
+            const dataType = document.getElementById('dataTypeDropdown').value;
+            const selectedId = document.getElementById('featureSelectDropdown').value;
+
+            sessionStorage.setItem('selectedDataType', dataType);
+            sessionStorage.setItem('selectedFeatureId', selectedId);
+
+            const features = featureDatabase[dataType] || [];
+            const data = features.find(f => f.id === selectedId);
+
+            if (!data) return;
+
+            document.getElementById('statMin').textContent = data.min;
+            document.getElementById('statAvg').textContent = data.avg;
+            document.getElementById('statMax').textContent = data.max;
+            document.getElementById('statStd').textContent = data.std;
+
+            document.getElementById('featureStatMinKec').textContent = "Kec. " + data.minKec;
+            document.getElementById('featureStatMaxKec').textContent = "Kec. " + data.maxKec;
+
+            document.getElementById('featureTitle').textContent = data.title;
+            document.getElementById('featureCategory').textContent = data.category;
+            document.getElementById('featureDesc').textContent = data.desc;
+            document.getElementById('featureRelevance').textContent = data.relevance;
+
+            const featureMapIframe = document.getElementById('featureMapIframe');
+            if (featureMapIframe) {
+                featureMapIframe.src = data.mapUrl;
+            }
+        }
+
+        // Execute immediately to prevent flicker on refresh
+        (function () {
+            // Restore active tab from hash or sessionStorage
+            let targetTab = 'home'; // default
+            if (window.location.hash) {
+                targetTab = window.location.hash.substring(1);
+            } else {
+                const savedTab = sessionStorage.getItem('activeTab');
+                if (savedTab) {
+                    targetTab = savedTab;
+                }
+            }
+
+            // Validate tab exists before switching
+            if (document.getElementById('content-' + targetTab)) {
+                switchTab(targetTab);
+            } else {
+                switchTab('home');
+            }
+
+            // Restore scroll position
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent) {
+                const savedScroll = sessionStorage.getItem('scrollPos');
+                if (savedScroll) {
+                    mainContent.scrollTop = parseInt(savedScroll, 10);
+                }
+
+                // Listen for scroll to save position
+                mainContent.addEventListener('scroll', function () {
+                    sessionStorage.setItem('scrollPos', mainContent.scrollTop);
+                });
+            }
+
+            // Remove FOUC prevention style so content is visible again
+            // Doing this after scrollTop is restored prevents jump flashing
+            const foucStyle = document.getElementById('fouc-prevention-style');
+            if (foucStyle) {
+                // Use requestAnimationFrame to ensure the scroll position has been applied before showing
+                requestAnimationFrame(() => {
+                    foucStyle.remove();
+                });
+            }
+        })();
+
+        window.onload = function () {
+            const savedDataType = sessionStorage.getItem('selectedDataType');
+            const savedFeatureId = sessionStorage.getItem('selectedFeatureId');
+
+            if (savedDataType) {
+                const dataTypeDropdown = document.getElementById('dataTypeDropdown');
+                const optionExists = Array.from(dataTypeDropdown.options).some(opt => opt.value === savedDataType);
+                if (optionExists) {
+                    dataTypeDropdown.value = savedDataType;
+                }
+            }
+
+            updateFeatureDropdownOptions(savedFeatureId);
+            renderEstimasiData();
+        };
+
+        let allKecamatanData = [];
+
+        function getIPMCategory(ipm) {
+            if (ipm < 60) return {
+                label: 'Rendah',
+                badgeBg: 'bg-[#fff5f0]', badgeText: 'text-[#ea372a]',
+                numBg: 'bg-[#fca486]', valText: 'text-[#ea372a]'
+            };
+            if (ipm < 70) return {
+                label: 'Sedang',
+                badgeBg: 'bg-[#fca486]', badgeText: 'text-[#67000d]',
+                numBg: 'bg-[#ea372a]', valText: 'text-[#ea372a]'
+            };
+            if (ipm < 80) return {
+                label: 'Tinggi',
+                badgeBg: 'bg-[#ea372a]', badgeText: 'text-white',
+                numBg: 'bg-[#ea372a]', valText: 'text-[#ea372a]'
+            };
+            return {
+                label: 'Sangat Tinggi',
+                badgeBg: 'bg-[#67000d]', badgeText: 'text-white',
+                numBg: 'bg-[#67000d]', valText: 'text-[#67000d]'
+            };
+        }
+
+        function renderEstimasiData() {
+            if (typeof json_Estimasi_IPM_Kecamatan_1 === 'undefined') {
+                console.error("Data Estimasi_IPM_Kecamatan_1.js tidak ditemukan.");
+                return;
+            }
+
+            const features = json_Estimasi_IPM_Kecamatan_1.features;
+
+            allKecamatanData = features.map(f => {
+                const props = f.properties;
+                const ipm = parseFloat(props.Estimasi_IPM).toFixed(2);
+                const category = getIPMCategory(parseFloat(ipm));
+                return {
+                    kecamatan: props.Kecamatan,
+                    kabkota: props.Kabupaten_Kota,
+                    ipm: parseFloat(ipm),
+                    ipmStr: ipm,
+                    kategori: category.label,
+                    ...category
+                };
+            });
+
+            // Populate Kab/Kota Filter Dropdown
+            const uniqueKabkota = [...new Set(allKecamatanData.map(item => item.kabkota))].sort();
+            const filterDropdown = document.getElementById('kabkotaFilter');
+            uniqueKabkota.forEach(kabkota => {
+                const option = document.createElement('option');
+                option.value = kabkota;
+                option.textContent = kabkota;
+                filterDropdown.appendChild(option);
+            });
+
+            // Sort data
+            const sortedDesc = [...allKecamatanData].sort((a, b) => b.ipm - a.ipm);
+            const top5Highest = sortedDesc.slice(0, 5);
+
+            const sortedAsc = [...allKecamatanData].sort((a, b) => a.ipm - b.ipm);
+            const top5Lowest = sortedAsc.slice(0, 5);
+
+            // Calculate Statistics
+            if (allKecamatanData.length > 0) {
+                const minObj = sortedAsc[0];
+                const maxObj = sortedDesc[0];
+
+                const ipmValues = allKecamatanData.map(item => item.ipm);
+                const sum = ipmValues.reduce((a, b) => a + b, 0);
+                const mean = sum / ipmValues.length;
+
+                const squaredDiffs = ipmValues.map(val => Math.pow(val - mean, 2));
+                const variance = squaredDiffs.reduce((a, b) => a + b, 0) / ipmValues.length;
+                const sd = Math.sqrt(variance);
+
+                document.getElementById('statMinVal').textContent = minObj.ipmStr;
+                document.getElementById('statMinKec').textContent = "Kec. " + minObj.kecamatan;
+
+                document.getElementById('statMeanVal').textContent = mean.toFixed(2);
+                document.getElementById('statMeanDesc').textContent = ``;
+
+                document.getElementById('statMaxVal').textContent = maxObj.ipmStr;
+                document.getElementById('statMaxKec').textContent = "Kec. " + maxObj.kecamatan;
+
+                document.getElementById('statSdVal').textContent = `sd = ${sd.toFixed(2)}`;
+            }
+
+            // Render List Kecamatan
+            const listContainer = document.getElementById('kecamatanListContainer');
+            const sortedAlpha = [...allKecamatanData].sort((a, b) => a.kecamatan.localeCompare(b.kecamatan));
+            listContainer.innerHTML = sortedAlpha.map(item => `
+                <div class="kecamatan-card p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-blue-50/60 transition-all cursor-pointer"
+                    onclick="zoomToKecamatanInMap('${item.kecamatan}')"
+                    onmouseenter="highlightKecamatan('${item.kecamatan}', '${item.ipmStr}', '${item.kabkota}', '${item.kategori}')"
+                    onmouseleave="resetHighlight()">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-semibold text-sm">${item.kecamatan}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded ${item.badgeBg} ${item.badgeText}">${item.kategori}</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>Kab./Kota: <b>${item.kabkota}</b></span>
+                        <span>IPM: ${item.ipmStr}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Render Top 5 Highest
+            const highestContainer = document.getElementById('top5HighestContainer');
+            highestContainer.innerHTML = top5Highest.map((item, index) => `
+                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:bg-slate-100 transition-all" onclick="zoomToKecamatanInMap('${item.kecamatan}')">
+                    <div class="flex items-center space-x-3">
+                        <span class="w-6 h-6 rounded-full ${item.numBg} text-white font-bold text-xs flex items-center justify-center">${index + 1}</span>
+                        <div>
+                            <span class="font-semibold block">${item.kecamatan}</span>
+                            <span class="text-xs text-slate-400">${item.kabkota}</span>
+                        </div>
+                    </div>
+                    <span class="font-bold ${item.valText}">${item.ipmStr}</span>
+                </div>
+            `).join('');
+
+            // Render Top 5 Lowest
+            const lowestContainer = document.getElementById('top5LowestContainer');
+            lowestContainer.innerHTML = top5Lowest.map((item, index) => `
+                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:bg-slate-100 transition-all" onclick="zoomToKecamatanInMap('${item.kecamatan}')">
+                    <div class="flex items-center space-x-3">
+                        <span class="w-6 h-6 rounded-full ${item.numBg} text-white font-bold text-xs flex items-center justify-center">${index + 1}</span>
+                        <div>
+                            <span class="font-semibold block">${item.kecamatan}</span>
+                            <span class="text-xs text-slate-400">${item.kabkota}</span>
+                        </div>
+                    </div>
+                    <span class="font-bold ${item.valText}">${item.ipmStr}</span>
+                </div>
+            `).join('');
+        }
+
+        let currentZoom = 1;
+        function zoomMap(direction) {
+            const viewport = document.getElementById('mapViewportContent');
+            if (direction === 'in' && currentZoom < 1.6) {
+                currentZoom += 0.2;
+            } else if (direction === 'out' && currentZoom > 0.8) {
+                currentZoom -= 0.2;
+            }
+            viewport.style.transform = `scale(${currentZoom})`;
+        }
+
+        let currentFeatureZoom = 1;
+        function zoomFeatureMap(direction) {
+            const viewport = document.getElementById('featureMapViewportContent');
+            if (direction === 'in' && currentFeatureZoom < 1.6) {
+                currentFeatureZoom += 0.2;
+            } else if (direction === 'out' && currentFeatureZoom > 0.8) {
+                currentFeatureZoom -= 0.2;
+            }
+            viewport.style.transform = `scale(${currentFeatureZoom})`;
+        }
+
+        function zoomToKecamatanInMap(kecamatanName) {
+            const iframe = document.querySelector('#mapCanvas iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    type: 'zoomToKecamatan',
+                    kecamatan: kecamatanName
+                }, '*');
+            }
+            const mapContainer = document.getElementById('mapCanvas');
+            if (mapContainer) {
+                mapContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+
+        function highlightKecamatan(nama, ipm, kabkota, kategori) {
+            const detailBox = document.getElementById('selectedKecamatanDetail');
+            detailBox.innerHTML = `
+                <span class="font-bold text-blue-600">${nama}:</span> 
+                Kab./Kota: <b>${kabkota}</b>, IPM <b>${ipm}</b> (${kategori}). 
+                <span class="block text-[10px] text-slate-400 mt-0.5">Wilayah berhasil disorot pada peta spasial.</span>
+            `;
+        }
+
+        function resetHighlight() {
+            const detailBox = document.getElementById('selectedKecamatanDetail');
+            detailBox.innerHTML = `<span class="font-semibold text-blue-600">Info Wilayah:</span> Arahkan kursor ke daftar kecamatan di atas untuk melihat ringkasan parameter spasial.`;
+        }
+
+        function filterKecamatanList() {
+            const query = (document.getElementById('mapSearchInput').value || '').toLowerCase();
+            const selectedKabkota = document.getElementById('kabkotaFilter').value;
+            const listContainer = document.getElementById('kecamatanListContainer');
+
+            // Hanya filter berdasarkan properti kecamatan
+            const filtered = allKecamatanData.filter(item => {
+                const matchSearch = item.kecamatan.toLowerCase().includes(query);
+                const matchKabkota = selectedKabkota === "" || item.kabkota === selectedKabkota;
+                return matchSearch && matchKabkota;
+            });
+
+            // Post message to map for kabkota filter
+            const iframe = document.querySelector('#mapCanvas iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    type: 'filterByKabkota',
+                    kabkota: selectedKabkota
+                }, '*');
+            }
+
+            // Re-render berdasarkan hasil filter
+            const sortedAlpha = [...filtered].sort((a, b) => a.kecamatan.localeCompare(b.kecamatan));
+            listContainer.innerHTML = sortedAlpha.map(item => `
+                <div class="kecamatan-card p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-blue-50/60 transition-all cursor-pointer"
+                    onclick="zoomToKecamatanInMap('${item.kecamatan}')"
+                    onmouseenter="highlightKecamatan('${item.kecamatan}', '${item.ipmStr}', '${item.kabkota}', '${item.kategori}')"
+                    onmouseleave="resetHighlight()">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-semibold text-sm">${item.kecamatan}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded ${item.badgeBg} ${item.badgeText}">${item.kategori}</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>Kab./Kota: <b>${item.kabkota}</b></span>
+                        <span>IPM: ${item.ipmStr}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function handleFeatureMapSearch(event) {
+            const query = event.target.value.toLowerCase();
+            const statusEl = document.getElementById('featureMapSearchStatus');
+            if (query.trim() === '') {
+                statusEl.textContent = 'Ruang khusus ini menampilkan sebaran spasial atau gradasi nilai fitur terpilih di seluruh wilayah kecamatan.';
+            } else {
+                statusEl.textContent = `Mencari dan memfokuskan wilayah spasial untuk kecamatan: "${query}"...`;
+            }
+        }
+    </script>
+</body>
+
+</html>

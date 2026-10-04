@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="css/leaflet.css">
+  <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+  <link rel="stylesheet" href="css/qgis2web.css">
+  <link rel="stylesheet" href="css/fontawesome-all.min.css">
+  <link rel="stylesheet" href="css/filter.css">
+  <link rel="stylesheet" href="css/nouislider.min.css">
+  <link rel="stylesheet" href="css/leaflet.photon.css">
+  <style>
+    html,
+    body,
+    #map {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      margin: 0;
+    }
+
+    #menu {
+      display: none !important;
+    }
+
+    #mapWindow {
+      width: 100% !important;
+    }
+  </style>
+  <title></title>
+</head>
+
+<body>
+  <div id="map">
+  </div>
+  <script src="js/qgis2web_expressions.js"></script>
+  <script src="js/leaflet.js"></script>
+  <script src="js/L.Control.Layers.Tree.min.js"></script>
+  <script src="js/leaflet.rotatedMarker.js"></script>
+  <script src="js/leaflet.pattern.js"></script>
+  <script src="js/leaflet-hash.js"></script>
+  <script src="js/Autolinker.min.js"></script>
+  <script src="js/rbush.min.js"></script>
+  <script src="js/labelgun.min.js"></script>
+  <script src="js/labels.js"></script>
+  <script src="js/leaflet.photon.js"></script>
+  <script src="js/tailDT.js"></script>
+  <script src="js/nouislider.min.js"></script>
+  <script src="js/wNumb.js"></script>
+  <script src="data/NightTimeLightNTL_1.js"></script>
+  <script>
+    var highlightLayer;
+    function highlightFeature(e) {
+      highlightLayer = e.target;
+
+      if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+        highlightLayer.setStyle({
+          color: 'rgba(255, 255, 0, 1.00)',
+        });
+      } else {
+        highlightLayer.setStyle({
+          fillColor: 'rgba(255, 255, 0, 1.00)',
+          fillOpacity: 1
+        });
+      }
+      highlightLayer.openPopup();
+    }
+    var map = L.map('map', {
+      zoomControl: false, maxZoom: 28, minZoom: 1, zoomSnap: 0.1, zoomDelta: 0.5
+    }).fitBounds([[-11.0076, 118.9270], [-7.7786, 125.1933]]);
+    var hash = new L.Hash(map);
+    map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+    var autolinker = new Autolinker({ truncate: { length: 30, location: 'smart' } });
+    // remove popup's row if "visible-with-data"
+    function removeEmptyRowsFromPopupContent(content, feature) {
+      var tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      var rows = tempDiv.querySelectorAll('tr');
+      for (var i = 0; i < rows.length; i++) {
+        var td = rows[i].querySelector('td.visible-with-data');
+        var key = td ? td.id : '';
+        if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+          rows[i].parentNode.removeChild(rows[i]);
+        }
+      }
+      return tempDiv.innerHTML;
+    }
+    // modify popup if contains media
+    function addClassToPopupIfMedia(content, popup) {
+      var tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      var imgTd = tempDiv.querySelector('td img');
+      if (imgTd) {
+        var src = imgTd.getAttribute('src');
+        if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+          popup._contentNode.classList.add('media');
+          var img = popup._contentNode.querySelector('td img');
+          if (img) {
+            // If already loaded (cache), update immediately
+            if (img.complete && img.naturalHeight > 0) {
+              popup.update();
+            } else {
+              img.addEventListener('load', function () {
+                popup.update();
+              });
+              img.addEventListener('error', function () {
+                popup.update();
+              });
+            }
+          }
+        } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+          var audio = document.createElement('audio');
+          audio.controls = true;
+          audio.src = src;
+          imgTd.parentNode.replaceChild(audio, imgTd);
+          popup._contentNode.classList.add('media');
+          setTimeout(function () {
+            popup.setContent(tempDiv.innerHTML);
+            popup.update();
+          }, 10);
+        } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+          var video = document.createElement('video');
+          video.controls = true;
+          video.src = src;
+          video.style.width = "400px";
+          video.style.height = "300px";
+          video.style.maxHeight = "60vh";
+          video.style.maxWidth = "60vw";
+          imgTd.parentNode.replaceChild(video, imgTd);
+          popup._contentNode.classList.add('media');
+          // Aggiorna il popup quando il video carica i metadati
+          video.addEventListener('loadedmetadata', function () {
+            popup.update();
+          });
+          setTimeout(function () {
+            popup.setContent(tempDiv.innerHTML);
+            popup.update();
+          }, 10);
+        } else {
+          popup._contentNode.classList.remove('media');
+        }
+      } else {
+        popup._contentNode.classList.remove('media');
+      }
+    }
+    var zoomControl = L.control.zoom({
+      position: 'topleft'
+    }).addTo(map);
+    var bounds_group = new L.featureGroup([]);
+    function setBounds() {
+    }
+    map.createPane('pane_GoogleRoad_0');
+    map.getPane('pane_GoogleRoad_0').style.zIndex = 400;
+    var layer_GoogleRoad_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      pane: 'pane_GoogleRoad_0',
+      opacity: 1.0,
+      attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+      minZoom: 1,
+      maxZoom: 28,
+      minNativeZoom: 0,
+      maxNativeZoom: 20
+    });
+    layer_GoogleRoad_0;
+    map.addLayer(layer_GoogleRoad_0);
+    function pop_NightTimeLightNTL_1(feature, layer) {
+      layer.on({
+        mouseout: function (e) {
+          for (var i in e.target._eventParents) {
+            if (typeof e.target._eventParents[i].resetStyle === 'function') {
+              e.target._eventParents[i].resetStyle(e.target);
+            }
+          }
+          if (typeof layer.closePopup == 'function') {
+            layer.closePopup();
+          } else {
+            layer.eachLayer(function (feature) {
+              feature.closePopup()
+            });
+          }
+        },
+        mouseover: highlightFeature,
+      });
+      var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Kecamatan</th>\
+                        <td class="visible-with-data" id="Kecamatan">' + (feature.properties['Kecamatan'] !== null ? autolinker.link(String(feature.properties['Kecamatan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Kabupaten/Kota</th>\
+                        <td class="visible-with-data" id="Kabupaten/Kota">' + (feature.properties['Kabupaten/Kota'] !== null ? autolinker.link(String(feature.properties['Kabupaten/Kota']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Night Time Light (NTL)</th>\
+                        <td class="visible-with-data" id="Night Time Light (NTL)">' + (feature.properties['Night Time Light (NTL)'] !== null ? autolinker.link(String(feature.properties['Night Time Light (NTL)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+      var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+      layer.on('popupopen', function (e) {
+        addClassToPopupIfMedia(content, e.popup);
+      });
+      layer.bindPopup(content, { maxHeight: 400, autoPan: false });
+    }
+
+    function style_NightTimeLightNTL_1_0(feature) {
+      if (feature.properties['Night Time Light (NTL)'] >= 0.218710 && feature.properties['Night Time Light (NTL)'] <= 0.350000) {
+        return {
+          pane: 'pane_NightTimeLightNTL_1',
+          opacity: 1,
+          color: 'rgba(0,0,0,1.0)',
+          dashArray: '',
+          lineCap: 'butt',
+          lineJoin: 'miter',
+          weight: 1.0,
+          fill: true,
+          fillOpacity: 1,
+          fillColor: 'rgba(149,148,148,1.0)',
+          interactive: true,
+        }
+      }
+      if (feature.properties['Night Time Light (NTL)'] >= 0.350000 && feature.properties['Night Time Light (NTL)'] <= 0.700000) {
+        return {
+          pane: 'pane_NightTimeLightNTL_1',
+          opacity: 1,
+          color: 'rgba(0,0,0,1.0)',
+          dashArray: '',
+          lineCap: 'butt',
+          lineJoin: 'miter',
+          weight: 1.0,
+          fill: true,
+          fillOpacity: 1,
+          fillColor: 'rgba(193,197,199,1.0)',
+          interactive: true,
+        }
+      }
+      if (feature.properties['Night Time Light (NTL)'] >= 0.700000 && feature.properties['Night Time Light (NTL)'] <= 21.305435) {
+        return {
+          pane: 'pane_NightTimeLightNTL_1',
+          opacity: 1,
+          color: 'rgba(0,0,0,1.0)',
+          dashArray: '',
+          lineCap: 'butt',
+          lineJoin: 'miter',
+          weight: 1.0,
+          fill: true,
+          fillOpacity: 1,
+          fillColor: 'rgba(255,255,255,1.0)',
+          interactive: true,
+        }
+      }
+    }
+    map.createPane('pane_NightTimeLightNTL_1');
+    map.getPane('pane_NightTimeLightNTL_1').style.zIndex = 401;
+    map.getPane('pane_NightTimeLightNTL_1').style['mix-blend-mode'] = 'normal';
+    var layer_NightTimeLightNTL_1 = new L.geoJson(json_NightTimeLightNTL_1, {
+      attribution: '',
+      interactive: true,
+      dataVar: 'json_NightTimeLightNTL_1',
+      layerName: 'layer_NightTimeLightNTL_1',
+      pane: 'pane_NightTimeLightNTL_1',
+      onEachFeature: pop_NightTimeLightNTL_1,
+      style: style_NightTimeLightNTL_1_0,
+    });
+    bounds_group.addLayer(layer_NightTimeLightNTL_1);
+    map.addLayer(layer_NightTimeLightNTL_1);
+    var overlaysTree = [
+      { label: 'Night Time Light (NTL)<br /><table><tr><td style="text-align: center;"><img src="legend/NightTimeLightNTL_1_02190350.png" /></td><td>0,219 - 0,35</td></tr><tr><td style="text-align: center;"><img src="legend/NightTimeLightNTL_1_035071.png" /></td><td>0,35 - 0,7</td></tr><tr><td style="text-align: center;"><img src="legend/NightTimeLightNTL_1_07213052.png" /></td><td>0,7 - 21,305</td></tr></table>', layer: layer_NightTimeLightNTL_1 },
+      { label: "Google Road", layer: layer_GoogleRoad_0 },]
+    var lay = L.control.layers.tree(null, overlaysTree, {
+      //namedToggle: true,
+      //selectorBack: false,
+      //closedSymbol: '&#8862; &#x1f5c0;',
+      //openedSymbol: '&#8863; &#x1f5c1;',
+      //collapseAll: 'Collapse all',
+      //expandAll: 'Expand all',
+      collapsed: false,
+    });
+    lay.addTo(map);
+    document.addEventListener("DOMContentLoaded", function () {
+      // set new Layers List height which considers toggle icon
+      function newLayersListHeight() {
+        var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+        if (layerScrollbarElement) {
+          var layersListElement = document.querySelector('.leaflet-control-layers-list');
+          var originalHeight = layersListElement.style.height
+            || window.getComputedStyle(layersListElement).height;
+          var newHeight = parseFloat(originalHeight) - 50;
+          layersListElement.style.height = newHeight + 'px';
+        }
+      }
+      var isLayersListExpanded = true;
+      var controlLayersElement = document.querySelector('.leaflet-control-layers');
+      var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+      // toggle Collapsed/Expanded and apply new Layers List height
+      toggleLayerControl.addEventListener('click', function () {
+        if (isLayersListExpanded) {
+          controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+        } else {
+          controlLayersElement.classList.add('leaflet-control-layers-expanded');
+        }
+        isLayersListExpanded = !isLayersListExpanded;
+        newLayersListHeight()
+      });
+      // apply new Layers List height if toggle layerstree
+      if (controlLayersElement) {
+        controlLayersElement.addEventListener('click', function (event) {
+          var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+          if (toggleLayerHeaderPointer) {
+            newLayersListHeight();
+          }
+        });
+      }
+      // Collapsed/Expanded at Start to apply new height
+      setTimeout(function () {
+        toggleLayerControl.click();
+      }, 10);
+      setTimeout(function () {
+        toggleLayerControl.click();
+      }, 10);
+      // Collapsed touch/small screen
+      var isSmallScreen = window.innerWidth < 650;
+      if (isSmallScreen) {
+        setTimeout(function () {
+          controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+          isLayersListExpanded = !isLayersListExpanded;
+        }, 500);
+      }
+    });
+    setBounds();
+    var mapDiv = document.getElementById('map');
+    var row = document.createElement('div');
+    row.className = "row";
+    row.id = "all";
+    row.style.height = "100%";
+    var col1 = document.createElement('div');
+    col1.className = "col9";
+    col1.id = "mapWindow";
+    col1.style.height = "99%";
+    col1.style.width = "80%";
+    col1.style.display = "inline-block";
+    var col2 = document.createElement('div');
+    col2.className = "col3";
+    col2.id = "menu";
+    col2.style.display = "inline-block";
+    mapDiv.parentNode.insertBefore(row, mapDiv);
+    document.getElementById("all").appendChild(col1);
+    document.getElementById("all").appendChild(col2);
+    col1.appendChild(mapDiv)
+    var Filters = { "Kecamatan": "str" };
+    function filterFunc() {
+      map.eachLayer(function (lyr) {
+        if ("options" in lyr && "dataVar" in lyr["options"]) {
+          features = this[lyr["options"]["dataVar"]].features.slice(0);
+          try {
+            for (key in Filters) {
+              keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+              if (Filters[key] == "str" || Filters[key] == "bool") {
+                var selection = [];
+                var options = document.getElementById("sel_" + keyS).options
+                for (var i = 0; i < options.length; i++) {
+                  if (options[i].selected) selection.push(options[i].value);
+                }
+                try {
+                  if (key in features[0].properties) {
+                    for (i = features.length - 1;
+                      i >= 0; --i) {
+                      if (selection.indexOf(
+                        features[i].properties[key]) < 0
+                        && selection.length > 0) {
+                        features.splice(i, 1);
+                      }
+                    }
+                  }
+                } catch (err) {
+                }
+              }
+              if (Filters[key] == "int") {
+                sliderVals = document.getElementById(
+                  "div_" + keyS).noUiSlider.get();
+                try {
+                  if (key in features[0].properties) {
+                    for (i = features.length - 1; i >= 0; --i) {
+                      if (parseInt(features[i].properties[key])
+                        < sliderVals[0]
+                        || parseInt(features[i].properties[key])
+                        > sliderVals[1]) {
+                        features.splice(i, 1);
+                      }
+                    }
+                  }
+                } catch (err) {
+                }
+              }
+              if (Filters[key] == "real") {
+                sliderVals = document.getElementById(
+                  "div_" + keyS).noUiSlider.get();
+                try {
+                  if (key in features[0].properties) {
+                    for (i = features.length - 1; i >= 0; --i) {
+                      if (features[i].properties[key]
+                        < sliderVals[0]
+                        || features[i].properties[key]
+                        > sliderVals[1]) {
+                        features.splice(i, 1);
+                      }
+                    }
+                  }
+                } catch (err) {
+                }
+              }
+              if (Filters[key] == "date"
+                || Filters[key] == "datetime"
+                || Filters[key] == "time") {
+                try {
+                  if (key in features[0].properties) {
+                    HTMLkey = key.replace(/[&\\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                    startdate = document.getElementById("dat_" +
+                      HTMLkey + "_date1").value.replace(" ", "T");
+                    enddate = document.getElementById("dat_" +
+                      HTMLkey + "_date2").value.replace(" ", "T");
+                    for (i = features.length - 1; i >= 0; --i) {
+                      if (features[i].properties[key] < startdate
+                        || features[i].properties[key] > enddate) {
+                        features.splice(i, 1);
+                      }
+                    }
+                  }
+                } catch (err) {
+                }
+              }
+            }
+          } catch (err) {
+          }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+        }
+      })
+    }
+    document.getElementById("menu").appendChild(
+      document.createElement("div"));
+    var div_Kecamatan = document.createElement('div');
+    div_Kecamatan.id = "div_Kecamatan";
+    div_Kecamatan.className = "filterselect";
+    document.getElementById("menu").appendChild(div_Kecamatan);
+    sel_Kecamatan = document.createElement('select');
+    sel_Kecamatan.multiple = true;
+    sel_Kecamatan.size = 10;
+    sel_Kecamatan.id = "sel_Kecamatan";
+    var Kecamatan_options_str = "<option value='' unselected></option>";
+    sel_Kecamatan.onchange = function () { filterFunc() };
+    Kecamatan_options_str += '<option value="Abad Selatan">Abad Selatan</option>';
+    Kecamatan_options_str += '<option value="Adonara">Adonara</option>';
+    Kecamatan_options_str += '<option value="Adonara Barat">Adonara Barat</option>';
+    Kecamatan_options_str += '<option value="Adonara Tengah">Adonara Tengah</option>';
+    Kecamatan_options_str += '<option value="Adonara Timur">Adonara Timur</option>';
+    Kecamatan_options_str += '<option value="Aesesa">Aesesa</option>';
+    Kecamatan_options_str += '<option value="Aesesa Selatan">Aesesa Selatan</option>';
+    Kecamatan_options_str += '<option value="Aimere">Aimere</option>';
+    Kecamatan_options_str += '<option value="Alak">Alak</option>';
+    Kecamatan_options_str += '<option value="Alok">Alok</option>';
+    Kecamatan_options_str += '<option value="Alok Barat">Alok Barat</option>';
+    Kecamatan_options_str += '<option value="Alok Timur">Alok Timur</option>';
+    Kecamatan_options_str += '<option value="Alor Barat Daya">Alor Barat Daya</option>';
+    Kecamatan_options_str += '<option value="Alor Barat Laut">Alor Barat Laut</option>';
+    Kecamatan_options_str += '<option value="Alor Selatan">Alor Selatan</option>';
+    Kecamatan_options_str += '<option value="Alor Tengah Utara">Alor Tengah Utara</option>';
+    Kecamatan_options_str += '<option value="Alor Timur">Alor Timur</option>';
+    Kecamatan_options_str += '<option value="Alor Timur Laut">Alor Timur Laut</option>';
+    Kecamatan_options_str += '<option value="Amabi Oefeto">Amabi Oefeto</option>';
+    Kecamatan_options_str += '<option value="Amabi Oefeto Timur">Amabi Oefeto Timur</option>';
+    Kecamatan_options_str += '<option value="Amanatun Selatan">Amanatun Selatan</option>';
+    Kecamatan_options_str += '<option value="Amanatun Utara">Amanatun Utara</option>';
+    Kecamatan_options_str += '<option value="Amanuban Barat">Amanuban Barat</option>';
+    Kecamatan_options_str += '<option value="Amanuban Selatan">Amanuban Selatan</option>';
+    Kecamatan_options_str += '<option value="Amanuban Tengah">Amanuban Tengah</option>';
+    Kecamatan_options_str += '<option value="Amanuban Timur">Amanuban Timur</option>';
+    Kecamatan_options_str += '<option value="Amarasi">Amarasi</option>';
+    Kecamatan_options_str += '<option value="Amarasi Barat">Amarasi Barat</option>';
+    Kecamatan_options_str += '<option value="Amarasi Selatan">Amarasi Selatan</option>';
+    Kecamatan_options_str += '<option value="Amarasi Timur">Amarasi Timur</option>';
+    Kecamatan_options_str += '<option value="Amfoang Barat Daya">Amfoang Barat Daya</option>';
+    Kecamatan_options_str += '<option value="Amfoang Barat Laut">Amfoang Barat Laut</option>';
+    Kecamatan_options_str += '<option value="Amfoang Selatan">Amfoang Selatan</option>';
+    Kecamatan_options_str += '<option value="Amfoang Tengah">Amfoang Tengah</option>';
+    Kecamatan_options_str += '<option value="Amfoang Timur">Amfoang Timur</option>';
+    Kecamatan_options_str += '<option value="Amfoang Utara">Amfoang Utara</option>';
+    Kecamatan_options_str += '<option value="Atadei">Atadei</option>';
+    Kecamatan_options_str += '<option value="Atambua Barat">Atambua Barat</option>';
+    Kecamatan_options_str += '<option value="Atambua Selatan">Atambua Selatan</option>';
+    Kecamatan_options_str += '<option value="Bajawa">Bajawa</option>';
+    Kecamatan_options_str += '<option value="Bajawa Utara">Bajawa Utara</option>';
+    Kecamatan_options_str += '<option value="Batu Putih">Batu Putih</option>';
+    Kecamatan_options_str += '<option value="Biboki Anleu">Biboki Anleu</option>';
+    Kecamatan_options_str += '<option value="Biboki Feotleu">Biboki Feotleu</option>';
+    Kecamatan_options_str += '<option value="Biboki Moenleu">Biboki Moenleu</option>';
+    Kecamatan_options_str += '<option value="Biboki Selatan">Biboki Selatan</option>';
+    Kecamatan_options_str += '<option value="Biboki Tan Pah">Biboki Tan Pah</option>';
+    Kecamatan_options_str += '<option value="Biboki Utara">Biboki Utara</option>';
+    Kecamatan_options_str += '<option value="Bikomi Nilulat">Bikomi Nilulat</option>';
+    Kecamatan_options_str += '<option value="Bikomi Selatan">Bikomi Selatan</option>';
+    Kecamatan_options_str += '<option value="Bikomi Tengah">Bikomi Tengah</option>';
+    Kecamatan_options_str += '<option value="Bikomi Utara">Bikomi Utara</option>';
+    Kecamatan_options_str += '<option value="Boawae">Boawae</option>';
+    Kecamatan_options_str += '<option value="Boking">Boking</option>';
+    Kecamatan_options_str += '<option value="Bola">Bola</option>';
+    Kecamatan_options_str += '<option value="Boleng">Boleng</option>';
+    Kecamatan_options_str += '<option value="Borong">Borong</option>';
+    Kecamatan_options_str += '<option value="Botin Leobele">Botin Leobele</option>';
+    Kecamatan_options_str += '<option value="Buyasuri">Buyasuri</option>';
+    Kecamatan_options_str += '<option value="Cibal">Cibal</option>';
+    Kecamatan_options_str += '<option value="Cibal barat">Cibal barat</option>';
+    Kecamatan_options_str += '<option value="Congkar">Congkar</option>';
+    Kecamatan_options_str += '<option value="Demon Pagong">Demon Pagong</option>';
+    Kecamatan_options_str += '<option value="Detukeli">Detukeli</option>';
+    Kecamatan_options_str += '<option value="Detusoko">Detusoko</option>';
+    Kecamatan_options_str += '<option value="Doreng">Doreng</option>';
+    Kecamatan_options_str += '<option value="Elar">Elar</option>';
+    Kecamatan_options_str += '<option value="Elar Selatan">Elar Selatan</option>';
+    Kecamatan_options_str += '<option value="Ende">Ende</option>';
+    Kecamatan_options_str += '<option value="Ende Selatan">Ende Selatan</option>';
+    Kecamatan_options_str += '<option value="Ende Tengah">Ende Tengah</option>';
+    Kecamatan_options_str += '<option value="Ende Timur">Ende Timur</option>';
+    Kecamatan_options_str += '<option value="Ende Utara">Ende Utara</option>';
+    Kecamatan_options_str += '<option value="Fatukopa">Fatukopa</option>';
+    Kecamatan_options_str += '<option value="Fatuleu">Fatuleu</option>';
+    Kecamatan_options_str += '<option value="Fatuleu Barat">Fatuleu Barat</option>';
+    Kecamatan_options_str += '<option value="Fatuleu Tengah">Fatuleu Tengah</option>';
+    Kecamatan_options_str += '<option value="Fatumnasi">Fatumnasi</option>';
+    Kecamatan_options_str += '<option value="Fautmolo">Fautmolo</option>';
+    Kecamatan_options_str += '<option value="Golewa">Golewa</option>';
+    Kecamatan_options_str += '<option value="Golewa Barat">Golewa Barat</option>';
+    Kecamatan_options_str += '<option value="Golewa Selatan">Golewa Selatan</option>';
+    Kecamatan_options_str += '<option value="Haharu">Haharu</option>';
+    Kecamatan_options_str += '<option value="Hawu Mehara">Hawu Mehara</option>';
+    Kecamatan_options_str += '<option value="Hewokloang">Hewokloang</option>';
+    Kecamatan_options_str += '<option value="Ile Ape">Ile Ape</option>';
+    Kecamatan_options_str += '<option value="Ile Ape Timur">Ile Ape Timur</option>';
+    Kecamatan_options_str += '<option value="Ile Boleng">Ile Boleng</option>';
+    Kecamatan_options_str += '<option value="Ile Bura">Ile Bura</option>';
+    Kecamatan_options_str += '<option value="Ile Mandiri">Ile Mandiri</option>';
+    Kecamatan_options_str += '<option value="Inerie">Inerie</option>';
+    Kecamatan_options_str += '<option value="Insana">Insana</option>';
+    Kecamatan_options_str += '<option value="Insana Barat">Insana Barat</option>';
+    Kecamatan_options_str += '<option value="Insana Fafinesu">Insana Fafinesu</option>';
+    Kecamatan_options_str += '<option value="Insana Tengah">Insana Tengah</option>';
+    Kecamatan_options_str += '<option value="Insana Utara">Insana Utara</option>';
+    Kecamatan_options_str += '<option value="Io Kufeu">Io Kufeu</option>';
+    Kecamatan_options_str += '<option value="Jerebuu">Jerebuu</option>';
+    Kecamatan_options_str += '<option value="KI&apos;E">KI&apos;E</option>';
+    Kecamatan_options_str += '<option value="Kabola">Kabola</option>';
+    Kecamatan_options_str += '<option value="Kahaungu Eti">Kahaungu Eti</option>';
+    Kecamatan_options_str += '<option value="Kakuluk Mesak">Kakuluk Mesak</option>';
+    Kecamatan_options_str += '<option value="Kambata Mapambuhang">Kambata Mapambuhang</option>';
+    Kecamatan_options_str += '<option value="Kambera">Kambera</option>';
+    Kecamatan_options_str += '<option value="Kanatang">Kanatang</option>';
+    Kecamatan_options_str += '<option value="Kangae">Kangae</option>';
+    Kecamatan_options_str += '<option value="Karera">Karera</option>';
+    Kecamatan_options_str += '<option value="Katala Hamu Lingu">Katala Hamu Lingu</option>';
+    Kecamatan_options_str += '<option value="Katiku Tana">Katiku Tana</option>';
+    Kecamatan_options_str += '<option value="Katiku Tana Selatan">Katiku Tana Selatan</option>';
+    Kecamatan_options_str += '<option value="Kelapa Lima">Kelapa Lima</option>';
+    Kecamatan_options_str += '<option value="Kelimutu">Kelimutu</option>';
+    Kecamatan_options_str += '<option value="Kelubagolit">Kelubagolit</option>';
+    Kecamatan_options_str += '<option value="Keo Tengah">Keo Tengah</option>';
+    Kecamatan_options_str += '<option value="Kewapante">Kewapante</option>';
+    Kecamatan_options_str += '<option value="Kobalima">Kobalima</option>';
+    Kecamatan_options_str += '<option value="Kobalima Timur">Kobalima Timur</option>';
+    Kecamatan_options_str += '<option value="Kodi">Kodi</option>';
+    Kecamatan_options_str += '<option value="Kodi Balaghar">Kodi Balaghar</option>';
+    Kecamatan_options_str += '<option value="Kodi Bangedo">Kodi Bangedo</option>';
+    Kecamatan_options_str += '<option value="Kodi Utara">Kodi Utara</option>';
+    Kecamatan_options_str += '<option value="Kok Baun">Kok Baun</option>';
+    Kecamatan_options_str += '<option value="Kolbano">Kolbano</option>';
+    Kecamatan_options_str += '<option value="Komodo">Komodo</option>';
+    Kecamatan_options_str += '<option value="Kot olin">Kot olin</option>';
+    Kecamatan_options_str += '<option value="Kota Atambua">Kota Atambua</option>';
+    Kecamatan_options_str += '<option value="Kota Baru">Kota Baru</option>';
+    Kecamatan_options_str += '<option value="Kota Kefamenanu">Kota Kefamenanu</option>';
+    Kecamatan_options_str += '<option value="Kota Komba">Kota Komba</option>';
+    Kecamatan_options_str += '<option value="Kota Komba Utara">Kota Komba Utara</option>';
+    Kecamatan_options_str += '<option value="Kota Lama">Kota Lama</option>';
+    Kecamatan_options_str += '<option value="Kota Raja">Kota Raja</option>';
+    Kecamatan_options_str += '<option value="Kota Soe">Kota Soe</option>';
+    Kecamatan_options_str += '<option value="Kota Tambolaka">Kota Tambolaka</option>';
+    Kecamatan_options_str += '<option value="Kota Waikabubak">Kota Waikabubak</option>';
+    Kecamatan_options_str += '<option value="Kota Waingapu">Kota Waingapu</option>';
+    Kecamatan_options_str += '<option value="Koting">Koting</option>';
+    Kecamatan_options_str += '<option value="Kualin">Kualin</option>';
+    Kecamatan_options_str += '<option value="Kuanfatu">Kuanfatu</option>';
+    Kecamatan_options_str += '<option value="Kuatnana">Kuatnana</option>';
+    Kecamatan_options_str += '<option value="Kupang Barat">Kupang Barat</option>';
+    Kecamatan_options_str += '<option value="Kupang Tengah">Kupang Tengah</option>';
+    Kecamatan_options_str += '<option value="Kupang Timur">Kupang Timur</option>';
+    Kecamatan_options_str += '<option value="Kuwus">Kuwus</option>';
+    Kecamatan_options_str += '<option value="Kuwus Barat">Kuwus Barat</option>';
+    Kecamatan_options_str += '<option value="Laboya Barat">Laboya Barat</option>';
+    Kecamatan_options_str += '<option value="Laenmanen">Laenmanen</option>';
+    Kecamatan_options_str += '<option value="Lamaknen">Lamaknen</option>';
+    Kecamatan_options_str += '<option value="Lamaknen Selatan">Lamaknen Selatan</option>';
+    Kecamatan_options_str += '<option value="Lamba Leda">Lamba Leda</option>';
+    Kecamatan_options_str += '<option value="Lamba Leda Selatan">Lamba Leda Selatan</option>';
+    Kecamatan_options_str += '<option value="Lamba Leda Timur">Lamba Leda Timur</option>';
+    Kecamatan_options_str += '<option value="Lamba Leda Utara">Lamba Leda Utara</option>';
+    Kecamatan_options_str += '<option value="Lamboya">Lamboya</option>';
+    Kecamatan_options_str += '<option value="Landu Leko">Landu Leko</option>';
+    Kecamatan_options_str += '<option value="Langke Rembong">Langke Rembong</option>';
+    Kecamatan_options_str += '<option value="Larantuka">Larantuka</option>';
+    Kecamatan_options_str += '<option value="Lasiolat">Lasiolat</option>';
+    Kecamatan_options_str += '<option value="Lebatukan">Lebatukan</option>';
+    Kecamatan_options_str += '<option value="Lela">Lela</option>';
+    Kecamatan_options_str += '<option value="Lelak">Lelak</option>';
+    Kecamatan_options_str += '<option value="Lembor">Lembor</option>';
+    Kecamatan_options_str += '<option value="Lembor Selatan">Lembor Selatan</option>';
+    Kecamatan_options_str += '<option value="Lembur">Lembur</option>';
+    Kecamatan_options_str += '<option value="Lepembusu Kelisoke">Lepembusu Kelisoke</option>';
+    Kecamatan_options_str += '<option value="Lewa">Lewa</option>';
+    Kecamatan_options_str += '<option value="Lewa Tidahu">Lewa Tidahu</option>';
+    Kecamatan_options_str += '<option value="Lewolema">Lewolema</option>';
+    Kecamatan_options_str += '<option value="Lio Timur">Lio Timur</option>';
+    Kecamatan_options_str += '<option value="Loaholu">Loaholu</option>';
+    Kecamatan_options_str += '<option value="Lobalain">Lobalain</option>';
+    Kecamatan_options_str += '<option value="Loli">Loli</option>';
+    Kecamatan_options_str += '<option value="Loura">Loura</option>';
+    Kecamatan_options_str += '<option value="Macang Pacar">Macang Pacar</option>';
+    Kecamatan_options_str += '<option value="Magepanda">Magepanda</option>';
+    Kecamatan_options_str += '<option value="Mahu">Mahu</option>';
+    Kecamatan_options_str += '<option value="Malaka Barat">Malaka Barat</option>';
+    Kecamatan_options_str += '<option value="Malaka Tengah">Malaka Tengah</option>';
+    Kecamatan_options_str += '<option value="Malaka Timur">Malaka Timur</option>';
+    Kecamatan_options_str += '<option value="Mamboro">Mamboro</option>';
+    Kecamatan_options_str += '<option value="Mapitara">Mapitara</option>';
+    Kecamatan_options_str += '<option value="Mataru">Mataru</option>';
+    Kecamatan_options_str += '<option value="Matawai La Pawu">Matawai La Pawu</option>';
+    Kecamatan_options_str += '<option value="Maukaro">Maukaro</option>';
+    Kecamatan_options_str += '<option value="Maulafa">Maulafa</option>';
+    Kecamatan_options_str += '<option value="Mauponggo">Mauponggo</option>';
+    Kecamatan_options_str += '<option value="Maurole">Maurole</option>';
+    Kecamatan_options_str += '<option value="Mbeliling">Mbeliling</option>';
+    Kecamatan_options_str += '<option value="Mego">Mego</option>';
+    Kecamatan_options_str += '<option value="Miomaffo Barat">Miomaffo Barat</option>';
+    Kecamatan_options_str += '<option value="Miomaffo Tengah">Miomaffo Tengah</option>';
+    Kecamatan_options_str += '<option value="Miomaffo Timur">Miomaffo Timur</option>';
+    Kecamatan_options_str += '<option value="Mollo Barat">Mollo Barat</option>';
+    Kecamatan_options_str += '<option value="Mollo Selatan">Mollo Selatan</option>';
+    Kecamatan_options_str += '<option value="Mollo Tengah">Mollo Tengah</option>';
+    Kecamatan_options_str += '<option value="Mollo Utara">Mollo Utara</option>';
+    Kecamatan_options_str += '<option value="Musi">Musi</option>';
+    Kecamatan_options_str += '<option value="Mutis">Mutis</option>';
+    Kecamatan_options_str += '<option value="Naga Wutung">Naga Wutung</option>';
+    Kecamatan_options_str += '<option value="Naibenu">Naibenu</option>';
+    Kecamatan_options_str += '<option value="Nanaet Duabesi">Nanaet Duabesi</option>';
+    Kecamatan_options_str += '<option value="Nangapanda">Nangapanda</option>';
+    Kecamatan_options_str += '<option value="Nangaroro">Nangaroro</option>';
+    Kecamatan_options_str += '<option value="Ndao Nuse">Ndao Nuse</option>';
+    Kecamatan_options_str += '<option value="Ndona">Ndona</option>';
+    Kecamatan_options_str += '<option value="Ndona Timur">Ndona Timur</option>';
+    Kecamatan_options_str += '<option value="Ndori">Ndori</option>';
+    Kecamatan_options_str += '<option value="Ndoso">Ndoso</option>';
+    Kecamatan_options_str += '<option value="Nekamese">Nekamese</option>';
+    Kecamatan_options_str += '<option value="Nelle">Nelle</option>';
+    Kecamatan_options_str += '<option value="Ngadu Ngala">Ngadu Ngala</option>';
+    Kecamatan_options_str += '<option value="Nggaha Ori Angu">Nggaha Ori Angu</option>';
+    Kecamatan_options_str += '<option value="Nita">Nita</option>';
+    Kecamatan_options_str += '<option value="Noebana">Noebana</option>';
+    Kecamatan_options_str += '<option value="Noebeba">Noebeba</option>';
+    Kecamatan_options_str += '<option value="Noemuti">Noemuti</option>';
+    Kecamatan_options_str += '<option value="Noemuti Timur">Noemuti Timur</option>';
+    Kecamatan_options_str += '<option value="Nubatukan">Nubatukan</option>';
+    Kecamatan_options_str += '<option value="Nunbena">Nunbena</option>';
+    Kecamatan_options_str += '<option value="Nunkolo">Nunkolo</option>';
+    Kecamatan_options_str += '<option value="Oebobo">Oebobo</option>';
+    Kecamatan_options_str += '<option value="Oenino">Oenino</option>';
+    Kecamatan_options_str += '<option value="Omesuri">Omesuri</option>';
+    Kecamatan_options_str += '<option value="Paberiwai">Paberiwai</option>';
+    Kecamatan_options_str += '<option value="Pacar">Pacar</option>';
+    Kecamatan_options_str += '<option value="Paga">Paga</option>';
+    Kecamatan_options_str += '<option value="Pahunga Lodu">Pahunga Lodu</option>';
+    Kecamatan_options_str += '<option value="Palue">Palue</option>';
+    Kecamatan_options_str += '<option value="Pandawai">Pandawai</option>';
+    Kecamatan_options_str += '<option value="Pantai Baru">Pantai Baru</option>';
+    Kecamatan_options_str += '<option value="Pantar">Pantar</option>';
+    Kecamatan_options_str += '<option value="Pantar Barat">Pantar Barat</option>';
+    Kecamatan_options_str += '<option value="Pantar Baru Laut">Pantar Baru Laut</option>';
+    Kecamatan_options_str += '<option value="Pantar Tengah">Pantar Tengah</option>';
+    Kecamatan_options_str += '<option value="Pantar Timur">Pantar Timur</option>';
+    Kecamatan_options_str += '<option value="Pinu Pahar">Pinu Pahar</option>';
+    Kecamatan_options_str += '<option value="Polen">Polen</option>';
+    Kecamatan_options_str += '<option value="Pulau Ende">Pulau Ende</option>';
+    Kecamatan_options_str += '<option value="Pulau Pura">Pulau Pura</option>';
+    Kecamatan_options_str += '<option value="Pureman">Pureman</option>';
+    Kecamatan_options_str += '<option value="Rahong Utara">Rahong Utara</option>';
+    Kecamatan_options_str += '<option value="Raihat">Raihat</option>';
+    Kecamatan_options_str += '<option value="Raijua">Raijua</option>';
+    Kecamatan_options_str += '<option value="Raimanuk">Raimanuk</option>';
+    Kecamatan_options_str += '<option value="Rana Mese">Rana Mese</option>';
+    Kecamatan_options_str += '<option value="Reok">Reok</option>';
+    Kecamatan_options_str += '<option value="Reok Barat">Reok Barat</option>';
+    Kecamatan_options_str += '<option value="Rindi">Rindi</option>';
+    Kecamatan_options_str += '<option value="Rinhat">Rinhat</option>';
+    Kecamatan_options_str += '<option value="Riung">Riung</option>';
+    Kecamatan_options_str += '<option value="Riung Barat">Riung Barat</option>';
+    Kecamatan_options_str += '<option value="Rote Barat">Rote Barat</option>';
+    Kecamatan_options_str += '<option value="Rote Barat Daya">Rote Barat Daya</option>';
+    Kecamatan_options_str += '<option value="Rote Barat Laut">Rote Barat Laut</option>';
+    Kecamatan_options_str += '<option value="Rote Selatan">Rote Selatan</option>';
+    Kecamatan_options_str += '<option value="Rote Tengah">Rote Tengah</option>';
+    Kecamatan_options_str += '<option value="Rote Timur">Rote Timur</option>';
+    Kecamatan_options_str += '<option value="Ruteng">Ruteng</option>';
+    Kecamatan_options_str += '<option value="Sabu Barat">Sabu Barat</option>';
+    Kecamatan_options_str += '<option value="Sabu Liae">Sabu Liae</option>';
+    Kecamatan_options_str += '<option value="Sabu Tengah">Sabu Tengah</option>';
+    Kecamatan_options_str += '<option value="Sabu Timur">Sabu Timur</option>';
+    Kecamatan_options_str += '<option value="Sambi Rampas">Sambi Rampas</option>';
+    Kecamatan_options_str += '<option value="Sano Nggoang">Sano Nggoang</option>';
+    Kecamatan_options_str += '<option value="Santian">Santian</option>';
+    Kecamatan_options_str += '<option value="Sasitamean">Sasitamean</option>';
+    Kecamatan_options_str += '<option value="Satar Mese">Satar Mese</option>';
+    Kecamatan_options_str += '<option value="Satar Mese Barat">Satar Mese Barat</option>';
+    Kecamatan_options_str += '<option value="Satar Mese Utara">Satar Mese Utara</option>';
+    Kecamatan_options_str += '<option value="Semau">Semau</option>';
+    Kecamatan_options_str += '<option value="Semau Selatan">Semau Selatan</option>';
+    Kecamatan_options_str += '<option value="Soa">Soa</option>';
+    Kecamatan_options_str += '<option value="Solor Barat">Solor Barat</option>';
+    Kecamatan_options_str += '<option value="Solor Selatan">Solor Selatan</option>';
+    Kecamatan_options_str += '<option value="Solor Timur">Solor Timur</option>';
+    Kecamatan_options_str += '<option value="Sulamu">Sulamu</option>';
+    Kecamatan_options_str += '<option value="Tabundung">Tabundung</option>';
+    Kecamatan_options_str += '<option value="Taebenu">Taebenu</option>';
+    Kecamatan_options_str += '<option value="Takari">Takari</option>';
+    Kecamatan_options_str += '<option value="Talibura">Talibura</option>';
+    Kecamatan_options_str += '<option value="Tana Righu">Tana Righu</option>';
+    Kecamatan_options_str += '<option value="Tana Wawo">Tana Wawo</option>';
+    Kecamatan_options_str += '<option value="Tanjung Bunga">Tanjung Bunga</option>';
+    Kecamatan_options_str += '<option value="Tasifeto Barat">Tasifeto Barat</option>';
+    Kecamatan_options_str += '<option value="TasifetoTimur">TasifetoTimur</option>';
+    Kecamatan_options_str += '<option value="Teluk Mutiara">Teluk Mutiara</option>';
+    Kecamatan_options_str += '<option value="Titehena">Titehena</option>';
+    Kecamatan_options_str += '<option value="Tobu">Tobu</option>';
+    Kecamatan_options_str += '<option value="Toianas">Toianas</option>';
+    Kecamatan_options_str += '<option value="Umalulu">Umalulu</option>';
+    Kecamatan_options_str += '<option value="Umbu Ratu Nggay">Umbu Ratu Nggay</option>';
+    Kecamatan_options_str += '<option value="Umbu Ratu Nggay Barat">Umbu Ratu Nggay Barat</option>';
+    Kecamatan_options_str += '<option value="Umbu Ratu Nggay Tengah">Umbu Ratu Nggay Tengah</option>';
+    Kecamatan_options_str += '<option value="Wae Rii">Wae Rii</option>';
+    Kecamatan_options_str += '<option value="Waiblama">Waiblama</option>';
+    Kecamatan_options_str += '<option value="Waigete">Waigete</option>';
+    Kecamatan_options_str += '<option value="Wanokaka">Wanokaka</option>';
+    Kecamatan_options_str += '<option value="Welak">Welak</option>';
+    Kecamatan_options_str += '<option value="Weliman">Weliman</option>';
+    Kecamatan_options_str += '<option value="Wewaria">Wewaria</option>';
+    Kecamatan_options_str += '<option value="Wewewa Barat">Wewewa Barat</option>';
+    Kecamatan_options_str += '<option value="Wewewa Selatan">Wewewa Selatan</option>';
+    Kecamatan_options_str += '<option value="Wewewa Tengah">Wewewa Tengah</option>';
+    Kecamatan_options_str += '<option value="Wewewa Timur">Wewewa Timur</option>';
+    Kecamatan_options_str += '<option value="Wewewa Utara">Wewewa Utara</option>';
+    Kecamatan_options_str += '<option value="Wewiku">Wewiku</option>';
+    Kecamatan_options_str += '<option value="Witihama">Witihama</option>';
+    Kecamatan_options_str += '<option value="Wolojita">Wolojita</option>';
+    Kecamatan_options_str += '<option value="Wolomeze">Wolomeze</option>';
+    Kecamatan_options_str += '<option value="Wolowae">Wolowae</option>';
+    Kecamatan_options_str += '<option value="Wolowaru">Wolowaru</option>';
+    Kecamatan_options_str += '<option value="Wotan Ulumando">Wotan Ulumando</option>';
+    Kecamatan_options_str += '<option value="Wulandoni">Wulandoni</option>';
+    Kecamatan_options_str += '<option value="Wulanggitang">Wulanggitang</option>';
+    Kecamatan_options_str += '<option value="Wulla Waijelu">Wulla Waijelu</option>';
+    sel_Kecamatan.innerHTML = Kecamatan_options_str;
+    div_Kecamatan.appendChild(sel_Kecamatan);
+    var lab_Kecamatan = document.createElement('div');
+    lab_Kecamatan.innerHTML = 'Kecamatan';
+    lab_Kecamatan.className = 'filterlabel';
+    div_Kecamatan.appendChild(lab_Kecamatan);
+    var reset_Kecamatan = document.createElement('div');
+    reset_Kecamatan.innerHTML = 'clear filter';
+    reset_Kecamatan.className = 'filterlabel';
+    reset_Kecamatan.onclick = function () {
+      var options = document.getElementById("sel_Kecamatan").options;
+      for (var i = 0; i < options.length; i++) {
+        options[i].selected = false;
+      }
+      filterFunc();
+    };
+    div_Kecamatan.appendChild(reset_Kecamatan);
+  </script>
+<script>
+    window.addEventListener('message', function (event) {
+        if (event.data && event.data.type === 'resize-map') {
+            if (typeof map !== 'undefined') {
+                setTimeout(function () {
+                    map.invalidateSize();
+                    map.fitBounds([[-11.0076, 118.9270], [-7.7786, 125.1933]]);
+                }, 100);
+            }
+        }
+    });
+</script>
+</body>
+
+</html>
